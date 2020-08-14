@@ -29,7 +29,7 @@ export default {
         {
           id: 1,
           name: 'Counter',
-          url: 'https://raw.githubusercontent.com/ajlopez/evmasm/master/samples/compile/counter.asm',
+          url: 'https://raw.githubusercontent.com/loredanacirstea/mevm/master/public/examples/Counter.sol',
         },
       ],
     }
@@ -41,7 +41,7 @@ export default {
       const response = await fetch(url).catch(console.log);
       const source = await response.text().catch(console.log);
       if (!source) return;
-      const remixName = `browser/${name}_yulp.sol`;
+      const remixName = `browser/${name}_asm.sol`;
       await remixclient.fileManager.setFile(remixName, source);
       await remixclient.fileManager.switchFile(remixName);
       await this.$store.dispatch('setCurrentFile', remixName);

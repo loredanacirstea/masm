@@ -108,14 +108,11 @@ export const abiBuildSigsTopics = (signatures, topics) => {
   return abiBuildMatches(funcMatches, topicMatches);
 }
 
-// Temporary tool until yulp has the abi as build output,
-// hence it may not be accurate, as it is not constructed
-// through the yulp grammar
 // Does not contain the constructor function
 // TODO: struct definition in signature - components
-export const abiExtractYulp = yulpsource => {
-  const funcMatches = getMatches(yulpsource, funcRegex);
-  const eventMatches = getMatches(yulpsource, eventRegex);
+export const abiExtract = source => {
+  const funcMatches = getMatches(source, funcRegex);
+  const eventMatches = getMatches(source, eventRegex);
 
   return abiBuildMatches(funcMatches, eventMatches);
 }
