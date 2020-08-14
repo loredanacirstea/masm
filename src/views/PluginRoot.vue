@@ -73,7 +73,7 @@ import 'swiper/dist/css/swiper.css';
 import Compile from '../components/Compile';
 import Deploy from '../components/Deploy';
 import { repoLink } from '../config';
-// import { abiBuildSigsTopics } from '../utils/abiExtractYulp';
+import { abiExtractYulp } from '../utils/abiExtractYulp';
 
 Vue.use(VueAwesomeSwiper);
 
@@ -141,6 +141,7 @@ export default {
       } catch (errors) {
         compiled.errors = [errors];
       }
+      compiled.abi = abiExtractYulp(source);
       this.$store.dispatch('setCompiled', compiled);
     },
   },

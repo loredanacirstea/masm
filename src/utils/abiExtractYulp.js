@@ -4,7 +4,7 @@
 // group2 function name
 // group3 arguments
 // group4 modifiers & return
-const funcRegex = /case sig"(function )?(.*)\((.*)\)\s(.*)?"/gi;
+const funcRegex = /sig"(function )?(.*)\((.*)\)\s(.*)?"/gi;
 const funcRegex2 = /sig"(function )?(.*)\((.*)\)\s(.*)?"/;
 const funcRegexFallb = /sig"(function )?(.*)\((.*)\)"/
 

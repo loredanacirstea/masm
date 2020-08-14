@@ -24,17 +24,12 @@ export default {
         {
           id: 0,
           name: 'EmptyContract',
-          url: 'https://raw.githubusercontent.com/FuelLabs/yulp/master/examples/EmptyContract.yulp',
+          url: 'https://raw.githubusercontent.com/ajlopez/evmasm/master/samples/compile/empty.asm',
         },
         {
           id: 1,
-          name: 'SimpleStore',
-          url: 'https://raw.githubusercontent.com/loredanacirstea/remix-yulp-plugin/master/client/public/examples/SimpleStore.yulp',
-        },
-        {
-          id: 2,
-          name: 'ERC20',
-          url: 'https://raw.githubusercontent.com/loredanacirstea/remix-yulp-plugin/master/client/public/examples/ERC20.yulp',
+          name: 'Counter',
+          url: 'https://raw.githubusercontent.com/ajlopez/evmasm/master/samples/compile/counter.asm',
         },
       ],
     }
