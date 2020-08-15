@@ -74,6 +74,7 @@ import Compile from '../components/Compile';
 import Deploy from '../components/Deploy';
 import { repoLink } from '../config';
 import { abiExtract } from '../utils/abiExtract';
+import mevm from '../plugins/mevm/index.js';
 
 Vue.use(VueAwesomeSwiper);
 
@@ -135,7 +136,7 @@ export default {
       const {source} = this;
       const compiled = {errors: [], evm: {bytecode: {}}};
 
-      const source2 = macroHandle(source);
+      const source2 = mevm.compile(source);
       compiled.source = source2;
 
       try {
@@ -150,65 +151,6 @@ export default {
     },
   },
 };
-
-function macroHandle(source) {
-  // const getmacrosRg = /(?<=%macro).*?(?=%endmacro)/gs;
-  const getmacrosRg = /%macro.*?%endmacro/gs;
-  const getstline = /(?<=%macro).*/;
-  const ARG_SEP = ' ';
-  const PARAM_SEP = ',';
-  const END_LEN = '%endmacro'.length;
-  const macros = {};
-  let newsource = '';
-  const matches = [...source.matchAll(getmacrosRg)];
-  let lasti = 0;
-  matches.forEach(match => {
-    const macro_args = match[0].match(getstline);
-    const [name, ...args] = macro_args[0].trim().split(ARG_SEP).map(val => val.trim());
-    const macrobody = match[0].substring(
-      macro_args.index + macro_args[0].length,
-      match[0].length - END_LEN
-    );
-
-    const fn = margs => {
-      let body = macrobody;
-      margs.forEach((val, i) => {
-        body = body.replace(`%${i}`, val);
-      });
-      return body;
-    }
-
-    macros[name] = { fn, count: 0 };
-    newsource += source.substring(lasti, match.index);
-    lasti = match.index + match[0].length;
-  });
-  newsource += source.substring(lasti);
-
-  const source2 = newsource;
-  newsource = '';
-  const usematches = Object.keys(macros).map(name => {
-    const usereg = new RegExp(`(?<!%macro\\s*)${name}\\s.*`, 'g');
-    return [...source2.matchAll(usereg)].map((val, i) => {
-      val.macroname = name;
-      val.instanceno = i;
-      return val;
-    });
-  }).reduce((accum, val) => accum.concat(val))
-    .sort((a, b) => a.index - b.index);
-
-  lasti = 0;
-  usematches.forEach(usematch => {
-    const name = usematch.macroname;
-    const params = usematch[0].substring(name.length).trim().split(PARAM_SEP).map(val => val.trim());
-    const text = macros[name].fn(params);
-    const comment = `/* (${usematch.instanceno}) ${name} ${params.join(', ')}    */\n`;
-    newsource += source2.substring(lasti, usematch.index) + comment + text;
-    lasti = usematch.index + usematch[0].length;
-  });
-
-  newsource += source2.substring(lasti);
-  return newsource;
-}
 </script>
 
 <style>
