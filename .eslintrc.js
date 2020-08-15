@@ -20,6 +20,7 @@ module.exports = {
     'arrow-parens': 'off',
     'arrow-body-style': 'off',
     'no-empty': 'off',
+    'prefer-destructuring': 'off',
   },
   parserOptions: {
     parser: 'babel-eslint',

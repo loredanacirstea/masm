@@ -11,6 +11,7 @@ export default new Vuex.Store({
     fileName: '',
     source: '',
     compiled: {},
+    storageItems: {},
   },
   mutations: {
     setState(state, {field, data}) {
@@ -39,6 +40,30 @@ export default new Vuex.Store({
       const source = await remixclient.fileManager.getFile(newFileName).catch(console.log);
       commit('setState', {field: 'fileName', data: newFileName});
       commit('setState', {field: 'source', data: source});
+    },
+    async remotefetch({dispatch}, {url, key}) {
+      const response = await fetch(url).catch(console.log);
+      const item = await response.text().catch(console.log);
+      if (key) {
+        dispatch('setlocal', {key, source: item});
+      }
+      return item;
+    },
+    localfetch({state, commit}, key) {
+      const { storageItems } = state;
+      storageItems[key] = localStorage.getItem(`mevm_${key}`);
+      commit('setState', {field: 'storageItems', data: storageItems});
+    },
+    setlocal({state, commit}, {key, source}) {
+      const { storageItems } = state;
+      localStorage.setItem(`mevm_${key}`, source);
+      storageItems[key] = source;
+      commit('setState', {field: 'storageItems', data: storageItems});
+    },
+    remixfetch({state}, filename) {
+      const {remixclient} = state;
+      filename = `browser/${filename}`;
+      return remixclient.fileManager.getFile(filename).catch(console.log);
     },
   },
 });

@@ -24,7 +24,7 @@
               </v-btn>
             </v-flex>
             <v-flex xs12>
-              <Compile @onCompile="onCompile"/>
+              <Compile @onCompile="onCompile" localfetch="localfetch"/>
             </v-flex>
           </v-layout>
         </v-container>
@@ -74,6 +74,7 @@ import Compile from '../components/Compile';
 import Deploy from '../components/Deploy';
 import { repoLink } from '../config';
 import { abiExtract } from '../utils/abiExtract';
+import mevm from '../plugins/mevm/index.js';
 
 Vue.use(VueAwesomeSwiper);
 
@@ -133,20 +134,29 @@ export default {
       await this.$store.dispatch('setCurrentFile');
 
       const {source} = this;
+      const remixMacros = await this.$store.dispatch('remixfetch', mevm.filename);
+      if (remixMacros) {
+        this.$store.dispatch('setlocal', {key: mevm.key, source: remixMacros});
+      }
+      let localMacros = this.$store.state.storageItems[mevm.key];
+      if (!localMacros) localMacros = await this.$store.dispatch('remotefetch', mevm);
       const compiled = {errors: [], evm: {bytecode: {}}};
 
+      const source2 = mevm.compile(source, localMacros);
+      compiled.source = source2;
+
       try {
-        compiled.evm.bytecode.object = evmasm.compile(source);
+        compiled.evm.bytecode.object = evmasm.compile(source2);
         console.log(compiled)
       } catch (errors) {
         compiled.errors = [errors];
       }
       compiled.abi = abiExtract(source);
+      console.log('compiled', compiled);
       this.$store.dispatch('setCompiled', compiled);
     },
   },
 };
-
 </script>
 
 <style>

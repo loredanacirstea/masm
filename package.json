@@ -1,5 +1,5 @@
 {
-  "name": "mevm",
+  "name": "mevm-client",
   "version": "0.1.0",
   "private": true,
   "scripts": {

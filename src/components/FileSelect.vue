@@ -7,6 +7,7 @@
         class="body-1"
         item-value="id"
         item-text="name"
+        item-disabled="disabled"
         placeholder="Load example contract"
         @change="onSelect"
       ></v-select>
@@ -16,6 +17,8 @@
 
 <script>
 
+import mevm from '../plugins/mevm/index.js';
+
 export default {
   data() {
     return {
@@ -23,13 +26,26 @@ export default {
       examples: [
         {
           id: 0,
-          name: 'EmptyContract',
+          name: 'empty contract',
           url: 'https://raw.githubusercontent.com/ajlopez/evmasm/master/samples/compile/empty.asm',
         },
         {
           id: 1,
-          name: 'Counter',
+          name: 'counter',
           url: 'https://raw.githubusercontent.com/loredanacirstea/mevm/master/public/examples/Counter.sol',
+        },
+        {
+          id: 2,
+          name: 'macros github',
+          url: mevm.url,
+          save: true,
+          filename: mevm.filename,
+        },
+        {
+          id: 3,
+          name: 'macros localStorage',
+          key: mevm.key,
+          disabled: !this.$store.dispatch('localfetch', mevm.key),
         },
       ],
     }
@@ -37,14 +53,24 @@ export default {
   methods: {
     async onSelect(id) {
       const { remixclient } = this.$store.state;
-      const { name, url } = this.examples[id];
-      const response = await fetch(url).catch(console.log);
-      const source = await response.text().catch(console.log);
+      const {
+        name, url, key, save, filename,
+      } = this.examples[id];
+      let source;
+      if (url) {
+        source = await this.$store.dispatch('remotefetch', {url, key});
+      } else {
+        source = await this.$store.dispatch('localfetch', key);
+      }
       if (!source) return;
-      const remixName = `browser/${name}_asm.sol`;
+      const remixName = `browser/${filename}` || `browser/${name}_asm.sol`;
       await remixclient.fileManager.setFile(remixName, source);
       await remixclient.fileManager.switchFile(remixName);
       await this.$store.dispatch('setCurrentFile', remixName);
+
+      if (save) {
+        this.$store.dispatch('setlocal', {key, source});
+      }
     },
   },
 };
