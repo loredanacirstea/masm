@@ -24,7 +24,7 @@
               </v-btn>
             </v-flex>
             <v-flex xs12>
-              <Compile @onCompile="onCompile"/>
+              <Compile @onCompile="onCompile" localfetch="localfetch"/>
             </v-flex>
           </v-layout>
         </v-container>
@@ -134,9 +134,11 @@ export default {
       await this.$store.dispatch('setCurrentFile');
 
       const {source} = this;
+      let localMacros = this.$store.state.storageItems[mevm.key];
+      if (!localMacros) localMacros = await this.$store.dispatch('remotefetch', mevm);
       const compiled = {errors: [], evm: {bytecode: {}}};
 
-      const source2 = mevm.compile(source);
+      const source2 = mevm.compile(source, localMacros);
       compiled.source = source2;
 
       try {

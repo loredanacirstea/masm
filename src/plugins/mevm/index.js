@@ -101,7 +101,6 @@ function compile(source) {
     return [_newsource, _lasti];
   }
 
-  //   let step = 0;
   while (macrosWContent.length > 0) {
     lasti = 0;
     const source3 = newsource;
@@ -122,12 +121,8 @@ function compile(source) {
       );
       const [s] = replaceInstance2(contentmatch, newsource, source3, lasti);
       newsource = s;
-      // lasti = i;
       newsource += source3.substring(closingpi + 1);
     }
-
-    // step+=1;
-    // if (step > 2) break;
   }
 
   return newsource;
@@ -135,4 +130,6 @@ function compile(source) {
 
 export default {
   compile,
+  key: 'macros',
+  url: 'https://raw.githubusercontent.com/loredanacirstea/mevm/master/src/plugins/mevm/macros/macros.sol',
 }
