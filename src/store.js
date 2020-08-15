@@ -60,5 +60,10 @@ export default new Vuex.Store({
       storageItems[key] = source;
       commit('setState', {field: 'storageItems', data: storageItems});
     },
+    remixfetch({state}, filename) {
+      const {remixclient} = state;
+      filename = `browser/${filename}`;
+      return remixclient.fileManager.getFile(filename).catch(console.log);
+    },
   },
 });

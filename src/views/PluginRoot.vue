@@ -134,6 +134,10 @@ export default {
       await this.$store.dispatch('setCurrentFile');
 
       const {source} = this;
+      const remixMacros = await this.$store.dispatch('remixfetch', mevm.filename);
+      if (remixMacros) {
+        this.$store.dispatch('setlocal', {key: mevm.key, source: remixMacros});
+      }
       let localMacros = this.$store.state.storageItems[mevm.key];
       if (!localMacros) localMacros = await this.$store.dispatch('remotefetch', mevm);
       const compiled = {errors: [], evm: {bytecode: {}}};

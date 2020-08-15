@@ -5,7 +5,8 @@ const ARG_SEP = ' ';
 const PARAM_SEP = ',';
 const END_LEN = '%endmacro'.length;
 
-function compile(source) {
+function compile(source, macrodefs) {
+  source = `${macrodefs}\n\n${source}`;
   const macros = {};
   let newsource = '';
   let lasti = 0;
@@ -131,5 +132,6 @@ function compile(source) {
 export default {
   compile,
   key: 'macros',
-  url: 'https://raw.githubusercontent.com/loredanacirstea/mevm/master/src/plugins/mevm/macros/macros.sol',
+  url: 'https://raw.githubusercontent.com/loredanacirstea/mevm/macros/src/plugins/mevm/macros/macros.sol',
+  filename: 'mevm_macros.sol',
 }

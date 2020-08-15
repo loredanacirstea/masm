@@ -39,12 +39,13 @@ export default {
           name: 'macros github',
           url: mevm.url,
           save: true,
+          filename: mevm.filename,
         },
         {
           id: 3,
           name: 'macros localStorage',
           key: mevm.key,
-          disabled: true,
+          disabled: !this.$store.dispatch('localfetch', mevm.key),
         },
       ],
     }
@@ -53,16 +54,16 @@ export default {
     async onSelect(id) {
       const { remixclient } = this.$store.state;
       const {
-        name, url, key, save,
+        name, url, key, save, filename,
       } = this.examples[id];
       let source;
       if (url) {
         source = await this.$store.dispatch('remotefetch', {url, key});
       } else {
-        source = this.$store.dispatch('localfetch', key);
+        source = await this.$store.dispatch('localfetch', key);
       }
       if (!source) return;
-      const remixName = `browser/${name}_asm.sol`;
+      const remixName = `browser/${filename}` || `browser/${name}_asm.sol`;
       await remixclient.fileManager.setFile(remixName, source);
       await remixclient.fileManager.switchFile(remixName);
       await this.$store.dispatch('setCurrentFile', remixName);
