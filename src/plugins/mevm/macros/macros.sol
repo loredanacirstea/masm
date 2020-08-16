@@ -19,3 +19,14 @@
     %0
     calldatacopy
 %endmacro
+
+%macro mload "mload %0"
+    %0
+    mload
+%endmacro
+
+%macro return "return %0 %1"
+    %1
+    %0
+    return
+%endmacro

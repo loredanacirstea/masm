@@ -21,6 +21,7 @@ module.exports = {
     'arrow-body-style': 'off',
     'no-empty': 'off',
     'prefer-destructuring': 'off',
+    'no-nested-ternary': 'off',
   },
   parserOptions: {
     parser: 'babel-eslint',
