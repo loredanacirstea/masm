@@ -23,7 +23,7 @@ function compile(source, macrodefs) {
     const fn = (content, margs) => {
       let body = macrobody;
       margs.forEach((val, i) => {
-        body = body.replaceAll(`%${i}`, val);
+        body = body.replace(new RegExp(`%${i}`, 'g'), val);
       });
       if (content) body = body.replace('%content', content);
       return body;
