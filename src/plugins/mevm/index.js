@@ -1,10 +1,13 @@
-const getmacrosRg = /%macro.*?%endmacro/gs;
+const getmacrosRg = /%macro\s.*?%endmacro/gs;
+const getmacroListsRg = /%macrolist\s.*?%endmacrolist/gs;
 const getstline = /(?<=%macro).*/;
+const getstlineList = /(?<=%macrolist).*/;
 const getinstance = (name, flag = 'g') => new RegExp(`(?<!%macro\\s*)${name}\\s.*`, flag);
 const DEF_ARG_SEP = '"';
 const ARG_SEP = ' ';
 const PARAM_SEP = ',';
 const END_LEN = '%endmacro'.length;
+const END_LEN_LIST = '%endmacrolist'.length;
 // let\s*([\w\d]*)\s*:=\s*(\w*)
 const paramTemplateRegex = paramArray => {
   const regextxt = paramArray.map(param => {
@@ -14,9 +17,40 @@ const paramTemplateRegex = paramArray => {
   return new RegExp(regextxt);
 }
 
+function extractJsTemplateString(source, starti) {
+  let start = source.substring(starti).indexOf('`');
+  if (start < 0) return null;
+  start += starti;
+  let end = source.substring(start + 1).indexOf('`');
+  if (end < 0) throw new Error(`Invalid JS template string in macro: ${source}`);
+  end += start + 1;
+  const fragment = source.substring(start, end + 1);
+  return { fragment, start, end };
+}
+
+function macroContentExtract(source) {
+  const fragments = [];
+  let lasti = 0;
+  let fragment = extractJsTemplateString(source, lasti)
+  while (fragment) {
+    if (fragment.start > lasti) {
+      const txt = source.substring(lasti, fragment.start);
+      if (txt.trim().length > 0) fragments.push({text: txt});
+    }
+    fragments.push({text: fragment.fragment, jsString: true});
+    lasti = fragment.end + 1;
+    fragment = extractJsTemplateString(source, lasti);
+  }
+  if (fragments.length === 0) fragments.push({text: source});
+  return fragments;
+}
+
 // template: let %0 := %1 or for {%content0} %0 {%content1}
 // expression: let a := 0x60
-function extractParams(template, expression) {
+function extractParams(template, expression, name, list = false) {
+  if (list) {
+    return expression.replace(name, '').split(template).map(val => val.trim());
+  }
   const params = template.split(ARG_SEP)
     .map(val => {
       const text = val.trim();
@@ -29,28 +63,54 @@ function extractParams(template, expression) {
   return [...new Array(noOfArgs).keys()].map(i => match[i + 1]);
 }
 
-function compile(source, macrodefs) {
-  source = `${macrodefs}\n\n${source}`;
+function getMacros(source) {
   const macros = {};
   let newsource = '';
   let lasti = 0;
-  const matches = [...source.matchAll(getmacrosRg)];
+  let matches = [...source.matchAll(getmacrosRg)];
+  matches = matches.concat([...source.matchAll(getmacroListsRg)].map(val => {
+    val.list = true;
+    return val;
+  }));
+  matches = matches.sort((a, b) => a.index - b.index);
 
   matches.forEach(match => {
-    const macroArgs = match[0].match(getstline);
+    const macroArgs = match[0].match(match.list ? getstlineList : getstline);
     const [name, template] = macroArgs[0].trim().split(DEF_ARG_SEP).map(val => val.trim());
     const macrobody = match[0].substring(
       macroArgs.index + macroArgs[0].length,
-      match[0].length - END_LEN,
+      match[0].length - (match.list ? END_LEN_LIST : END_LEN),
     );
-
-    const fn = (content, margs) => {
+    let fn = (content, margs) => {
       let body = macrobody;
       margs.forEach((val, i) => {
         body = body.replace(new RegExp(`%${i}`, 'g'), val);
       });
-      if (content) body = body.replace('%content', content);
+
+      if (content) {
+        // Separate js template string content from normal content
+        const bodyfragments = macroContentExtract(body);
+        console.log('bodyfragments', bodyfragments);
+        body = bodyfragments.map(fragment => {
+          if (fragment.jsString) {
+            const txt = fragment.text.replace('%content', `\`${content}\``);
+            // eslint-disable-next-line no-eval
+            return eval(txt);
+          }
+          return fragment.text.replace('%content', content);
+        })
+      }
       return body;
+    }
+    if (match.list) {
+      fn = (content, margs) => {
+        let body = '';
+        margs.forEach((val) => {
+          body += macrobody.replace(/%x/g, val);
+        });
+        if (content) body = body.replace('%content', content);
+        return body;
+      }
     }
 
     macros[name] = {
@@ -58,11 +118,23 @@ function compile(source, macrodefs) {
       count: 0,
       hascontent: macrobody.includes('%content'),
       template,
+      list: match.list,
     };
     newsource += source.substring(lasti, match.index);
     lasti = match.index + match[0].length;
   });
   newsource += source.substring(lasti);
+  return { macros, newsource };
+}
+
+function compile(source, macrodefs) {
+  source = `${macrodefs}\n\n${source}`;
+  let macros = {};
+  let newsource = '';
+  let lasti = 0;
+
+  ({ macros, newsource } = getMacros(source));
+  console.log('macros', macros);
 
   const source2 = newsource;
   newsource = '';
@@ -86,7 +158,9 @@ function compile(source, macrodefs) {
       .map(val => val.trim());
 
     // Process params after template definition if exists
-    if (macros[name].template) params = extractParams(macros[name].template, usematch[0])
+    if (macros[name].template) {
+      params = extractParams(macros[name].template, usematch[0], name, macros[name].list)
+    }
     const text = macros[name].fn(usematch.content, params);
     const comment = `/* (${usematch.instanceno}) ${name} ${params.join(', ')}    */`;
     _newsource += oldsource.substring(_lasti, usematch.index) + comment + text;
