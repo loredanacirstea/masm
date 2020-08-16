@@ -132,6 +132,6 @@ function compile(source, macrodefs) {
 export default {
   compile,
   key: 'macros',
-  url: 'https://raw.githubusercontent.com/loredanacirstea/mevm/macros/src/plugins/mevm/macros/macros.sol',
+  url: 'https://raw.githubusercontent.com/loredanacirstea/mevm/master/src/plugins/mevm/macros/macros.sol',
   filename: 'mevm_macros.sol',
 }
