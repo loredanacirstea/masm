@@ -1,9 +1,33 @@
 const getmacrosRg = /%macro.*?%endmacro/gs;
 const getstline = /(?<=%macro).*/;
 const getinstance = (name, flag = 'g') => new RegExp(`(?<!%macro\\s*)${name}\\s.*`, flag);
+const DEF_ARG_SEP = '"';
 const ARG_SEP = ' ';
 const PARAM_SEP = ',';
 const END_LEN = '%endmacro'.length;
+// let\s*([\w\d]*)\s*:=\s*(\w*)
+const paramTemplateRegex = paramArray => {
+  const regextxt = paramArray.map(param => {
+    if (param.arg) return '([\\w\\d]*)';
+    return param.text;
+  }).join('\\s*')
+  return new RegExp(regextxt);
+}
+
+// template: let %0 := %1 or for {%content0} %0 {%content1}
+// expression: let a := 0x60
+function extractParams(template, expression) {
+  const params = template.split(ARG_SEP)
+    .map(val => {
+      const text = val.trim();
+      return { text, arg: text.includes('%') };
+    })
+  const regex = paramTemplateRegex(params);
+  const match = expression.match(regex);
+  const noOfArgs = params.filter(value => value.arg).length;
+  // regex has a group for each argument, starting with index 1
+  return [...new Array(noOfArgs).keys()].map(i => match[i + 1]);
+}
 
 function compile(source, macrodefs) {
   source = `${macrodefs}\n\n${source}`;
@@ -14,7 +38,7 @@ function compile(source, macrodefs) {
 
   matches.forEach(match => {
     const macroArgs = match[0].match(getstline);
-    const [name] = macroArgs[0].trim().split(ARG_SEP).map(val => val.trim());
+    const [name, template] = macroArgs[0].trim().split(DEF_ARG_SEP).map(val => val.trim());
     const macrobody = match[0].substring(
       macroArgs.index + macroArgs[0].length,
       match[0].length - END_LEN,
@@ -29,7 +53,12 @@ function compile(source, macrodefs) {
       return body;
     }
 
-    macros[name] = { fn, count: 0, hascontent: macrobody.includes('%content') };
+    macros[name] = {
+      fn,
+      count: 0,
+      hascontent: macrobody.includes('%content'),
+      template,
+    };
     newsource += source.substring(lasti, match.index);
     lasti = match.index + match[0].length;
   });
@@ -51,12 +80,15 @@ function compile(source, macrodefs) {
 
   const replaceInstance = (usematch, _newsource, oldsource, _lasti) => {
     const name = usematch.macroname;
-    const params = usematch[0].substring(name.length)
+    let params = usematch[0].substring(name.length)
       .trim()
       .split(PARAM_SEP)
       .map(val => val.trim());
+
+    // Process params after template definition if exists
+    if (macros[name].template) params = extractParams(macros[name].template, usematch[0])
     const text = macros[name].fn(usematch.content, params);
-    const comment = `/* (${usematch.instanceno}) ${name} ${params.join(', ')}    */\n`;
+    const comment = `/* (${usematch.instanceno}) ${name} ${params.join(', ')}    */`;
     _newsource += oldsource.substring(_lasti, usematch.index) + comment + text;
     _lasti = usematch.index + usematch[0].length;
     return [_newsource, _lasti];
