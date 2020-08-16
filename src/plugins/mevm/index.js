@@ -42,6 +42,10 @@ function macroContentExtract(source) {
     fragment = extractJsTemplateString(source, lasti);
   }
   if (fragments.length === 0) fragments.push({text: source});
+  else if (lasti < source.length) {
+    const txt = source.substring(lasti);
+    if (txt.trim().length > 0) fragments.push({text: txt});
+  }
   return fragments;
 }
 
@@ -86,7 +90,7 @@ function getMacros(source) {
       margs.forEach((val, i) => {
         body = body.replace(new RegExp(`%${i}`, 'g'), val);
       });
-
+      body = body.replace(/%incount/g, margs.length);
       if (content) {
         // Separate js template string content from normal content
         const bodyfragments = macroContentExtract(body);
@@ -98,7 +102,7 @@ function getMacros(source) {
             return eval(txt);
           }
           return fragment.text.replace('%content', content);
-        })
+        }).join('');
       }
       return body;
     }
