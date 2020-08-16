@@ -30,3 +30,13 @@
     %0
     return
 %endmacro
+
+%macrolist loadvals ","
+    %x
+    mload
+%endmacrolist
+
+%macro repeat
+   ` ${%content.repeat(%0)}
+   `
+%endmacro
