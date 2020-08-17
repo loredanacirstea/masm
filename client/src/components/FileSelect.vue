@@ -17,7 +17,7 @@
 
 <script>
 
-import mevm from '../plugins/mevm/index.js';
+import mevm from 'mevm';
 
 export default {
   data() {

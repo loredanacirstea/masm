@@ -12,13 +12,21 @@ export default new Vuex.Store({
     source: '',
     compiled: {},
     storageItems: {},
+    backend: 'mevm',
   },
   mutations: {
     setState(state, {field, data}) {
       state[field] = data;
     },
+    setBackend(state, value) {
+      state.backend = value;
+    },
   },
   actions: {
+    setBackend({commit}, value) {
+      console.log('store setBackend', value);
+      commit('setState', {field: 'backend', data: value});
+    },
     setCompiled({commit}, compiled) {
       commit('setState', {field: 'compiled', data: compiled});
     },
@@ -64,6 +72,19 @@ export default new Vuex.Store({
       const {remixclient} = state;
       filename = `browser/${filename}`;
       return remixclient.fileManager.getFile(filename).catch(console.log);
+    },
+    async compileFile({state}, {name, source}) {
+      const {remixclient, fileName} = state;
+
+      const contract = {};
+      contract[name || fileName] = {content: source };
+
+      return remixclient.call('solidity', 'compileWithParameters', contract, {
+        evmVersion: null,
+        optimize: true,
+        language: 'Yul',
+        version: '0.5.7+commit.6da8b019',
+      });
     },
   },
 });

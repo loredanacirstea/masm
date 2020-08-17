@@ -24,6 +24,16 @@
               </v-btn>
             </v-flex>
             <v-flex xs12>
+              <v-flex xs9 style="margin-left:35px;">
+                <v-select v-model="backend"
+                  :items="backends"
+                  solo
+                  class="body-1"
+                  item-value="id"
+                  item-text="name"
+                  placeholder="Select backend"
+                ></v-select>
+              </v-flex>
               <Compile @onCompile="onCompile" localfetch="localfetch"/>
             </v-flex>
           </v-layout>
@@ -67,14 +77,15 @@ import Vue from 'vue';
 import { mapState } from 'vuex';
 import VueAwesomeSwiper from 'vue-awesome-swiper';
 import evmasm from 'evmasm';
+import mevm from 'mevm';
+import yulp from 'yulp';
 // eslint-disable-next-line
 import 'swiper/dist/css/swiper.css';
 
 import Compile from '../components/Compile';
 import Deploy from '../components/Deploy';
 import { repoLink } from '../config';
-import { abiExtract } from '../utils/abiExtract';
-import mevm from '../plugins/mevm/index.js';
+import { abiExtract, abiBuildSigsTopics } from '../utils/abiExtract';
 
 Vue.use(VueAwesomeSwiper);
 
@@ -94,15 +105,31 @@ export default {
       },
       currentSlide: 0,
       github: repoLink,
+      backends: [{id: 'mevm', name: 'mevm'}, {id: 'yulp', name: 'yul+'}],
     };
   },
-  computed: mapState({
-    swiper() {
-      return this.$refs.mySwiper.swiper;
+  computed: {
+    ...mapState({
+      swiper() {
+        return this.$refs.mySwiper.swiper;
+      },
+      compiled: state => state.compiled,
+      source: state => state.source,
+      // backend: state => state.backend,
+      // backend: {
+      //   get() { return this.$store.state.backend; },
+      //   set(value) { this.$store.dispatch('setBackend', value) },
+      // },
+    }),
+    backend: {
+      get() {
+        return this.$store.state.backend;
+      },
+      set(value) {
+        this.$store.commit('setBackend', value);
+      },
     },
-    compiled: state => state.compiled,
-    source: state => state.source,
-  }),
+  },
   mounted() {
     this.setData();
   },
@@ -129,11 +156,27 @@ export default {
     onReload() {
       window.location.reload();
     },
+    // onChangeBackend(value) {
+    //   console.log('onChangeBackend', value);
+    //   this.$store.commit('setBackend', value);
+    // },
     async onCompile() {
+      let compiled;
       // We make sure that we are compiling the current file state
       await this.$store.dispatch('setCurrentFile');
 
-      const {source} = this;
+      const {backend, source} = this;
+      console.log('backend', backend);
+      if (backend === 'yulp') {
+        compiled = await this.onCompileYulp(source, this.fileName);
+      } else {
+        compiled = await this.onCompileMevm(source);
+      }
+
+      console.log('compiled', compiled);
+      this.$store.dispatch('setCompiled', compiled);
+    },
+    async onCompileMevm(source) {
       const remixMacros = await this.$store.dispatch('remixfetch', mevm.filename);
       if (remixMacros) {
         this.$store.dispatch('setlocal', {key: mevm.key, source: remixMacros});
@@ -152,8 +195,48 @@ export default {
         compiled.errors = [errors];
       }
       compiled.abi = abiExtract(source);
-      console.log('compiled', compiled);
-      this.$store.dispatch('setCompiled', compiled);
+      return compiled;
+    },
+    async onCompileYulp(source, fileName) {
+      let yulpCompiled = null;
+      let yulpResult = null;
+      let yulpError = null;
+      let compiled = {errors: []};
+
+      try {
+        yulpCompiled = yulp.compile(source);
+        yulpResult = yulp.print(yulpCompiled.results);
+      } catch (yulpErrors) {
+        yulpError = [yulpErrors];
+        compiled.errors = yulpError;
+      }
+
+      if (!yulpError) {
+        // For some reason we need to replace . with _ for the web version
+        // of solc loaded by Remix from solc-bin to compile the code.
+        yulpResult = yulpResult.replace(/\./g, '_');
+
+        let output = await this.$store.dispatch('compileFile', {name: fileName, source: yulpResult});
+
+        if (!output) {
+          output = {errors: [{message: 'Could not compile.'}]};
+        } else {
+          output = output.data;
+        }
+
+        if (output.contracts) {
+          compiled = Object.values(output.contracts)[0];
+          // We only select the first contract object now
+          // In the future, maybe support multiple
+          compiled = Object.values(compiled)[0];
+        }
+        compiled.source = yulpResult;
+        compiled.signatures = yulpCompiled.signatures;
+        compiled.topics = yulpCompiled.topics;
+        compiled.abi = abiBuildSigsTopics(yulpCompiled.signatures, yulpCompiled.topics);
+        compiled.errors = output.errors;
+      }
+      return compiled;
     },
   },
 };
