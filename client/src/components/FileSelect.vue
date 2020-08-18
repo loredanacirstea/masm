@@ -32,7 +32,7 @@ export default {
         {
           id: 1,
           name: 'counter',
-          url: 'https://raw.githubusercontent.com/loredanacirstea/mevm/master/public/examples/Counter.sol',
+          url: 'https://raw.githubusercontent.com/loredanacirstea/mevm/master/client/public/examples/Counter.sol',
         },
         {
           id: 2,

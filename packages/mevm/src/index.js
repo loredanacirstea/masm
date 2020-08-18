@@ -243,6 +243,6 @@ function compile(source, macrodefs) {
 module.exports = {
   compile,
   key: 'macros',
-  url: 'https://raw.githubusercontent.com/loredanacirstea/mevm/master/src/plugins/mevm/macros/macros.sol',
+  url: 'https://raw.githubusercontent.com/loredanacirstea/mevm/master/client/src/plugins/mevm/macros/macros.sol',
   filename: 'mevm_macros.sol',
 }
