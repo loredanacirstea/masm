@@ -22,6 +22,8 @@ module.exports = {
     'no-empty': 'off',
     'prefer-destructuring': 'off',
     'no-nested-ternary': 'off',
+    'object-shorthand': 'off',
+    'func-names': 'off',
   },
   parserOptions: {
     parser: 'babel-eslint',

@@ -34,7 +34,11 @@
                   placeholder="Select backend"
                 ></v-select>
               </v-flex>
-              <Compile @onCompile="onCompile" localfetch="localfetch"/>
+              <Compile
+                @onCompile="onCompile"
+                @onCompileDirty="onCompileDirty"
+                @onDeployDirty="onDeployDirty"
+              />
             </v-flex>
           </v-layout>
         </v-container>
@@ -105,7 +109,14 @@ export default {
       },
       currentSlide: 0,
       github: repoLink,
-      backends: [{id: 'mevm', name: 'mevm'}, {id: 'yul', name: 'yul'}, {id: 'yulp', name: 'yul+'}, {id: 'sol', name: 'sol'}],
+      backends: [
+        {id: 'masm', name: 'masm'},
+        {id: 'asm', name: 'asm'},
+        {id: 'hex', name: 'hex'},
+        {id: 'yul', name: 'yul'},
+        {id: 'yulp', name: 'yul+'},
+        {id: 'sol', name: 'sol'},
+      ],
     };
   },
   computed: {
@@ -153,39 +164,61 @@ export default {
       window.location.reload();
     },
     async onCompile() {
-      let compiled;
       // We make sure that we are compiling the current file state
       await this.$store.dispatch('setCurrentFile');
 
       const {backend, source, fileName} = this;
-      let back;
+      const compiled = await this.onCompileInternal(backend, source, fileName);
+      this.$store.dispatch('setCompiled', compiled);
+    },
+    async onCompileDirty(backend, source) {
+      const {fileName} = this;
+      const oldCompiled = this.$store.state.compiled;
+      const compiled = await this.onCompileInternal(backend, source, fileName, true);
+      compiled.abi = oldCompiled.abi;
+      this.$store.dispatch('setCompiled', compiled);
+    },
+    async onCompileInternal(backend, source, fileName, forcebackend = false) {
+      let back = backend;
+      let compiled;
 
-      if (fileName.includes('sol')) {
-        back = 'sol';
-      } else if (fileName.includes('asm')) {
-        back = 'asm';
-      } else if (fileName.includes('.yul')) {
-        back = 'yul';
-      } else if (fileName.includes('.yul')) {
-        back = 'yul+';
-      }
+      if (!forcebackend) {
+        if (fileName.includes('masm')) {
+          back = 'masm';
+        } else if (fileName.includes('asm')) {
+          back = 'asm';
+        } else if (fileName.includes('hex')) {
+          back = 'hex';
+        } else if (fileName.includes('.yulp')) {
+          back = 'yul+';
+        } else if (fileName.includes('.yul')) {
+          back = 'yul';
+        } else if (fileName.includes('sol')) {
+          back = 'sol';
+        }
 
-      if (backend !== back) {
-        this.$store.commit('setBackend', back);
+        if (backend !== back) {
+          this.$store.commit('setBackend', back);
+        }
       }
+      console.log('backend, back', backend, back);
 
       if (back === 'sol') {
         compiled = await this.onCompileSol(source, fileName);
-      } else if (back === 'yulp') {
+      } else if (back === 'yul+') {
         compiled = await this.onCompileYulp(source, fileName);
       } else if (back === 'yul') {
         compiled = await this.onCompileYul(source, fileName);
+      } else if (back === 'hex') {
+        compiled = {evm: {bytecode: {object: source}}};
+      } else if (back === 'masm') {
+        compiled = await this.onCompileMasm(source);
       } else {
-        compiled = await this.onCompileMevm(source);
+        compiled = await this.onCompileAsm(source);
       }
 
       console.log('compiled', compiled);
-      this.$store.dispatch('setCompiled', compiled);
+      return compiled;
     },
     async onCompileSol(source, fileName) {
       let output = await this.$store.dispatch('compileFile', {name: fileName, source, backend: 'solc'});
@@ -207,24 +240,28 @@ export default {
 
       return compiled;
     },
-    async onCompileMevm(source) {
+    async onCompileAsm(source) {
+      const compiled = {errors: [], evm: {bytecode: {}}, abi: []};
+      compiled.evm.assembly = source;
+
+      try {
+        compiled.evm.bytecode.object = evmasm.compile(source);
+      } catch (errors) {
+        compiled.errors = [errors];
+      }
+
+      return compiled;
+    },
+    async onCompileMasm(source) {
       const remixMacros = await this.$store.dispatch('remixfetch', mevm.filename);
       if (remixMacros) {
         this.$store.dispatch('setlocal', {key: mevm.key, source: remixMacros});
       }
       let localMacros = this.$store.state.storageItems[mevm.key];
       if (!localMacros) localMacros = await this.$store.dispatch('remotefetch', mevm);
-      const compiled = {errors: [], evm: {bytecode: {}}};
 
       const source2 = mevm.compile(source, localMacros);
-      compiled.evm.assembly = source2;
-
-      try {
-        compiled.evm.bytecode.object = evmasm.compile(source2);
-        console.log(compiled)
-      } catch (errors) {
-        compiled.errors = [errors];
-      }
+      const compiled = this.onCompileAsm(source2);
       compiled.abi = abiExtract(source);
       return compiled;
     },
