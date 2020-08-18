@@ -28,11 +28,13 @@ export default {
           id: 0,
           name: 'empty contract',
           url: 'https://raw.githubusercontent.com/ajlopez/evmasm/master/samples/compile/empty.asm',
+          filename: 'empty.asm',
         },
         {
           id: 1,
           name: 'counter',
-          url: 'https://raw.githubusercontent.com/loredanacirstea/mevm/master/client/public/examples/Counter.sol',
+          url: 'https://raw.githubusercontent.com/loredanacirstea/mevm/master/client/public/examples/Counter.asm',
+          filename: 'counter.asm',
         },
         {
           id: 2,
@@ -46,6 +48,7 @@ export default {
           name: 'macros localStorage',
           key: mevm.key,
           disabled: !this.$store.dispatch('localfetch', mevm.key),
+          filename: 'masm_macros_local.masm',
         },
       ],
     }
@@ -63,7 +66,7 @@ export default {
         source = await this.$store.dispatch('localfetch', key);
       }
       if (!source) return;
-      const remixName = `browser/${filename}` || `browser/${name}_asm.sol`;
+      const remixName = filename ? `browser/${filename}` : `browser/${name}.masm`;
       await remixclient.fileManager.setFile(remixName, source);
       await remixclient.fileManager.switchFile(remixName);
       await this.$store.dispatch('setCurrentFile', remixName);
