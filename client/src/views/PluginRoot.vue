@@ -190,7 +190,7 @@ export default {
         } else if (fileName.includes('hex')) {
           back = 'hex';
         } else if (fileName.includes('.yulp')) {
-          back = 'yul+';
+          back = 'yulp';
         } else if (fileName.includes('.yul')) {
           back = 'yul';
         } else if (fileName.includes('sol')) {
@@ -205,7 +205,7 @@ export default {
 
       if (back === 'sol') {
         compiled = await this.onCompileSol(source, fileName);
-      } else if (back === 'yul+') {
+      } else if (back === 'yulp') {
         compiled = await this.onCompileYulp(source, fileName);
       } else if (back === 'yul') {
         compiled = await this.onCompileYul(source, fileName);
