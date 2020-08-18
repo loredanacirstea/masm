@@ -17,6 +17,10 @@ const paramTemplateRegex = paramArray => {
   return new RegExp(regextxt);
 }
 
+if (window) {
+  window.vars = {test: 1};
+}
+
 function extractJsTemplateString(source, starti) {
   let start = source.substring(starti).indexOf('`');
   if (start < 0) return null;
@@ -91,19 +95,26 @@ function getMacros(source) {
         body = body.replace(new RegExp(`%${i}`, 'g'), val);
       });
       body = body.replace(/%incount/g, margs.length);
-      if (content) {
-        // Separate js template string content from normal content
-        const bodyfragments = macroContentExtract(body);
-        console.log('bodyfragments', bodyfragments);
-        body = bodyfragments.map(fragment => {
-          if (fragment.jsString) {
-            const txt = fragment.text.replace('%content', `\`${content}\``);
-            // eslint-disable-next-line no-eval
-            return eval(txt);
+
+      // Separate js template string content from normal content
+      const bodyfragments = macroContentExtract(body);
+      console.log('bodyfragments', bodyfragments);
+
+      body = bodyfragments.map(fragment => {
+        let txt = fragment.text;
+
+        if (fragment.jsString) {
+          if (content) {
+            txt = txt.replace('%content', `\`${content}\``);
           }
-          return fragment.text.replace('%content', content);
-        }).join('');
-      }
+          function evaluate(text) {
+            // eslint-disable-next-line no-eval
+            return eval(text);
+          }
+          return evaluate(txt);
+        }
+        return content ? txt.replace('%content', content) : txt;
+      }).join('');
       return body;
     }
     if (match.list) {
@@ -165,8 +176,8 @@ function compile(source, macrodefs) {
     if (macros[name].template) {
       params = extractParams(macros[name].template, usematch[0], name, macros[name].list)
     }
-    const text = macros[name].fn(usematch.content, params);
-    const comment = `/* (${usematch.instanceno}) ${name} ${params.join(', ')}    */`;
+    const text = macros[name].fn(usematch.content, params).trim();
+    const comment = `/* (${usematch.instanceno}) ${name} ${params.join(', ')}    */\n`;
     _newsource += oldsource.substring(_lasti, usematch.index) + comment + text;
     _lasti = usematch.index + usematch[0].length;
     return [_newsource, _lasti];
@@ -204,9 +215,9 @@ function compile(source, macrodefs) {
       .trim()
       .split(PARAM_SEP)
       .map(val => val.trim());
-    const text = macros[name].fn(usematch.content, params);
+    const text = macros[name].fn(usematch.content, params).trim();
     // const comment = `/* (${usematch.instanceno}) ${name} ${params.join(', ')}    */\n`;
-    const comment = '';
+    const comment = '\n';
     _newsource += oldsource.substring(_lasti, usematch.index) + comment + text;
     _lasti = usematch.index + usematch[0].length;
     return [_newsource, _lasti];
