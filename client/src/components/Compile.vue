@@ -17,7 +17,7 @@
         </v-btn>
       </v-flex>
       <v-flex xs11 v-if="compiled">
-        <CompilationDetails :compiled="compiled"/>
+        <CompilationDetails :compiled="compiled" @onCompile="onCompileDirty"/>
       </v-flex>
     </v-layout>
   </v-flex>
@@ -37,6 +37,11 @@ export default {
   watch: {
     shortFileName() {
       this.$emit('onCompile');
+    },
+  },
+  methods: {
+    onCompileDirty(backend, value) {
+      this.$emit('onCompileDirty', backend, value);
     },
   },
 };

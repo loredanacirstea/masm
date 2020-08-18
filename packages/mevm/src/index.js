@@ -236,10 +236,11 @@ function compile(source, macrodefs) {
     }
   }
 
+  newsource = newsource.trim();
   return newsource;
 }
 
-export default {
+module.exports = {
   compile,
   key: 'macros',
   url: 'https://raw.githubusercontent.com/loredanacirstea/mevm/master/src/plugins/mevm/macros/macros.sol',
