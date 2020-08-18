@@ -75,18 +75,18 @@ export default new Vuex.Store({
     },
     async compileFile({state}, {name, source, backend}) {
       const {remixclient, fileName} = state;
-      let version = '0.7.0+commit.9e61f92b';
-      if (backend === 'yulp') version = '0.5.7+commit.6da8b019';
-
-      const contract = {};
-      contract[name || fileName] = {content: source };
-
       const settings = {
         evmVersion: null,
         optimize: true,
         language: 'Yul',
-        version,
+        version: '0.7.0+commit.9e61f92b',
       };
+
+      if (backend === 'yulp') settings.version = '0.5.7+commit.6da8b019';
+      if (backend === 'solc') settings.language = 'Solidity';
+
+      const contract = {};
+      contract[name || fileName] = {content: source };
 
       console.log('settings', settings);
 

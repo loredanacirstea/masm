@@ -105,7 +105,7 @@ export default {
       },
       currentSlide: 0,
       github: repoLink,
-      backends: [{id: 'mevm', name: 'mevm'}, {id: 'yulp', name: 'yul+'}, {id: 'yul', name: 'yul'}],
+      backends: [{id: 'mevm', name: 'mevm'}, {id: 'yul', name: 'yul'}, {id: 'yulp', name: 'yul+'}, {id: 'sol', name: 'sol'}],
     };
   },
   computed: {
@@ -115,11 +115,7 @@ export default {
       },
       compiled: state => state.compiled,
       source: state => state.source,
-      // backend: state => state.backend,
-      // backend: {
-      //   get() { return this.$store.state.backend; },
-      //   set(value) { this.$store.dispatch('setBackend', value) },
-      // },
+      fileName: state => state.fileName,
     }),
     backend: {
       get() {
@@ -156,27 +152,60 @@ export default {
     onReload() {
       window.location.reload();
     },
-    // onChangeBackend(value) {
-    //   console.log('onChangeBackend', value);
-    //   this.$store.commit('setBackend', value);
-    // },
     async onCompile() {
       let compiled;
       // We make sure that we are compiling the current file state
       await this.$store.dispatch('setCurrentFile');
 
-      const {backend, source} = this;
-      console.log('backend', backend);
-      if (backend === 'yulp') {
-        compiled = await this.onCompileYulp(source, this.fileName);
-      } else if (backend === 'yul') {
-        compiled = await this.onCompileYul(source, this.fileName);
+      const {backend, source, fileName} = this;
+      let back;
+
+      if (fileName.includes('sol')) {
+        back = 'sol';
+      } else if (fileName.includes('asm')) {
+        back = 'asm';
+      } else if (fileName.includes('.yul')) {
+        back = 'yul';
+      } else if (fileName.includes('.yul')) {
+        back = 'yul+';
+      }
+
+      if (backend !== back) {
+        this.$store.commit('setBackend', back);
+      }
+
+      if (back === 'sol') {
+        compiled = await this.onCompileSol(source, fileName);
+      } else if (back === 'yulp') {
+        compiled = await this.onCompileYulp(source, fileName);
+      } else if (back === 'yul') {
+        compiled = await this.onCompileYul(source, fileName);
       } else {
         compiled = await this.onCompileMevm(source);
       }
 
       console.log('compiled', compiled);
       this.$store.dispatch('setCompiled', compiled);
+    },
+    async onCompileSol(source, fileName) {
+      let output = await this.$store.dispatch('compileFile', {name: fileName, source, backend: 'solc'});
+      let compiled = {};
+
+      if (!output) {
+        output = {errors: [{message: 'Could not compile.'}]};
+      } else {
+        output = output.data;
+      }
+
+      if (output.contracts) {
+        compiled = Object.values(output.contracts)[0];
+        // We only select the first contract object now
+        // In the future, maybe support multiple
+        compiled = Object.values(compiled)[0];
+      }
+      compiled.errors = output.errors;
+
+      return compiled;
     },
     async onCompileMevm(source) {
       const remixMacros = await this.$store.dispatch('remixfetch', mevm.filename);
