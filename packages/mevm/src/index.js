@@ -236,6 +236,7 @@ function compile(source, macrodefs) {
     }
   }
 
+  newsource = newsource.trim();
   return newsource;
 }
 

@@ -4,18 +4,28 @@
       <h3>Errors</h3>
       {{compiled.errors.map(v => typeof v === 'object' ? (v.formattedMessage || v.message) : v)}}
     </v-flex>
-    <v-flex xs10 v-if="compiled.source">
-      <h3>Asm Source</h3>
+    <v-flex xs10 v-if="compiled.yul">
+      <h3>Yul</h3>
       <div>
         <v-textarea
-          v-model="compiled.source"
-          rows="25"
+          v-model="compiled.yul"
+          rows="5"
+          style="width: 100%;font-size: 12px;"
+        ></v-textarea>
+      </div>
+    </v-flex>
+    <v-flex xs10 v-if="compiled.evm && compiled.evm.assembly">
+      <h3>Asm</h3>
+      <div>
+        <v-textarea
+          v-model="compiled.evm.assembly"
+          rows="5"
           style="width: 100%;font-size: 12px;"
         ></v-textarea>
       </div>
     </v-flex>
     <v-flex xs10 v-if="compiled.evm && compiled.evm.bytecode && compiled.evm.bytecode.object">
-      <h3>(<small>{{Math.round(compiled.evm.bytecode.object.length / 2)}} bytes</small>)</h3>
+      <h3>Bytecode (<small>{{Math.round(compiled.evm.bytecode.object.length / 2)}} bytes</small>)</h3>
       <v-textarea
         v-model="compiled.evm.bytecode.object"
         rows="5"

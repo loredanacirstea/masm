@@ -73,18 +73,24 @@ export default new Vuex.Store({
       filename = `browser/${filename}`;
       return remixclient.fileManager.getFile(filename).catch(console.log);
     },
-    async compileFile({state}, {name, source}) {
+    async compileFile({state}, {name, source, backend}) {
       const {remixclient, fileName} = state;
+      let version = '0.7.0+commit.9e61f92b';
+      if (backend === 'yulp') version = '0.5.7+commit.6da8b019';
 
       const contract = {};
       contract[name || fileName] = {content: source };
 
-      return remixclient.call('solidity', 'compileWithParameters', contract, {
+      const settings = {
         evmVersion: null,
         optimize: true,
         language: 'Yul',
-        version: '0.5.7+commit.6da8b019',
-      });
+        version,
+      };
+
+      console.log('settings', settings);
+
+      return remixclient.call('solidity', 'compileWithParameters', contract, settings);
     },
   },
 });

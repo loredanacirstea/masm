@@ -105,7 +105,7 @@ export default {
       },
       currentSlide: 0,
       github: repoLink,
-      backends: [{id: 'mevm', name: 'mevm'}, {id: 'yulp', name: 'yul+'}],
+      backends: [{id: 'mevm', name: 'mevm'}, {id: 'yulp', name: 'yul+'}, {id: 'yul', name: 'yul'}],
     };
   },
   computed: {
@@ -169,6 +169,8 @@ export default {
       console.log('backend', backend);
       if (backend === 'yulp') {
         compiled = await this.onCompileYulp(source, this.fileName);
+      } else if (backend === 'yul') {
+        compiled = await this.onCompileYul(source, this.fileName);
       } else {
         compiled = await this.onCompileMevm(source);
       }
@@ -186,7 +188,7 @@ export default {
       const compiled = {errors: [], evm: {bytecode: {}}};
 
       const source2 = mevm.compile(source, localMacros);
-      compiled.source = source2;
+      compiled.evm.assembly = source2;
 
       try {
         compiled.evm.bytecode.object = evmasm.compile(source2);
@@ -195,6 +197,30 @@ export default {
         compiled.errors = [errors];
       }
       compiled.abi = abiExtract(source);
+      return compiled;
+    },
+    async onCompileYul(source, fileName) {
+      let output = await this.$store.dispatch('compileFile', {name: fileName, source});
+      let compiled;
+
+      if (!output) {
+        output = {errors: [{message: 'Could not compile.'}]};
+      } else {
+        output = output.data;
+      }
+
+      if (output.contracts) {
+        compiled = Object.values(output.contracts)[0];
+        // We only select the first contract object now
+        // In the future, maybe support multiple
+        compiled = Object.values(compiled)[0];
+      }
+      compiled.yul = source;
+      compiled.signatures = [];
+      compiled.topics = [];
+      compiled.abi = []
+      compiled.errors = output.errors;
+
       return compiled;
     },
     async onCompileYulp(source, fileName) {
@@ -216,7 +242,7 @@ export default {
         // of solc loaded by Remix from solc-bin to compile the code.
         yulpResult = yulpResult.replace(/\./g, '_');
 
-        let output = await this.$store.dispatch('compileFile', {name: fileName, source: yulpResult});
+        let output = await this.$store.dispatch('compileFile', {name: fileName, source: yulpResult, backend: 'yulp'});
 
         if (!output) {
           output = {errors: [{message: 'Could not compile.'}]};
@@ -230,7 +256,7 @@ export default {
           // In the future, maybe support multiple
           compiled = Object.values(compiled)[0];
         }
-        compiled.source = yulpResult;
+        compiled.yul = yulpResult;
         compiled.signatures = yulpCompiled.signatures;
         compiled.topics = yulpCompiled.topics;
         compiled.abi = abiBuildSigsTopics(yulpCompiled.signatures, yulpCompiled.topics);
