@@ -37,7 +37,6 @@
               <Compile
                 @onCompile="onCompile"
                 @onCompileDirty="onCompileDirty"
-                @onDeployDirty="onDeployDirty"
               />
             </v-flex>
           </v-layout>
