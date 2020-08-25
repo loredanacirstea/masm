@@ -177,7 +177,9 @@ function compile(source, macrodefs) {
       params = extractParams(macros[name].template, usematch[0], name, macros[name].list)
     }
     const text = macros[name].fn(usematch.content, params).trim();
-    const comment = `/* (${usematch.instanceno}) ${name} ${params.join(', ')}    */\n`;
+    const usercommenti = usematch[0].indexOf('//');
+    const usercomment = usercommenti > -1 ? usematch[0].substring(usercommenti) : '';
+    const comment = `/* (${usematch.instanceno}) ${name} ${params.join(', ')}   ${usercomment}   */\n`;
     _newsource += oldsource.substring(_lasti, usematch.index) + comment + text;
     _lasti = usematch.index + usematch[0].length;
     return [_newsource, _lasti];
