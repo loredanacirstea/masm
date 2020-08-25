@@ -266,7 +266,7 @@ export default {
     },
     async onCompileYul(source, fileName) {
       let output = await this.$store.dispatch('compileFile', {name: fileName, source});
-      let compiled;
+      let compiled = {};
 
       if (!output) {
         output = {errors: [{message: 'Could not compile.'}]};

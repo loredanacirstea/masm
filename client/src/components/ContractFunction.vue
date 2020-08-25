@@ -122,8 +122,12 @@ export default {
         useCall,
       };
       console.log('transaction', transaction);
-
-      const receipt = await remixclient.udapp.sendTransaction(transaction);
+      let receipt;
+      try {
+        receipt = await remixclient.udapp.sendTransaction(transaction);
+      } catch (e) {
+        receipt = {error: e.message}
+      }
       console.log('receipt', receipt);
       this.output = JSON.stringify(receipt);
     },
