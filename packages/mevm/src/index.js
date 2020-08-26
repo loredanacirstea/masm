@@ -147,6 +147,7 @@ function compile(source, macrodefs) {
   let macros = {};
   let newsource = '';
   let lasti = 0;
+  const instanceNos = {};
 
   ({ macros, newsource } = getMacros(source));
   console.log('macros', macros);
@@ -160,6 +161,7 @@ function compile(source, macrodefs) {
       return [...source2.matchAll(usereg)].map((val, i) => {
         val.macroname = name;
         val.instanceno = i;
+        instanceNos[val.macroname] = i;
         return val;
       });
     }).reduce((accum, val) => accum.concat(val), [])
@@ -236,7 +238,10 @@ function compile(source, macrodefs) {
       newsource = source3;
     } else {
       contentmatch.macroname = macrosWContent[0];
-      contentmatch.instanceno = 0
+      let lasti = instanceNos[contentmatch.macroname]
+      lasti = (lasti || lasti === 0) ? (lasti + 1) : 0;
+      instanceNos[contentmatch.macroname] = lasti;
+      contentmatch.instanceno = lasti;
       const closingpi = getClosingParensPos(source3, contentmatch.index + contentmatch[0].length);
       // const text = source3.substring(contentmatch.index, closingpi + 1);
       contentmatch.content = source3.substring(
