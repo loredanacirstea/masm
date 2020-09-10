@@ -228,27 +228,27 @@ function compile(source, macrodefs) {
   }
 
   while (macrosWContent.length > 0) {
-    lasti = 0;
+    lastinstance = 0;
     const source3 = newsource;
     newsource = '';
-    const contentmatch = source3.match(getinstance(macrosWContent[0], ''));
-
+    const contentmatch = source3.match(getinstance2(macrosWContent[0], ''));
     if (!contentmatch) {
       macrosWContent.shift();
       newsource = source3;
     } else {
       contentmatch.macroname = macrosWContent[0];
-      let lasti = instanceNos[contentmatch.macroname]
-      lasti = (lasti || lasti === 0) ? (lasti + 1) : 0;
-      instanceNos[contentmatch.macroname] = lasti;
-      contentmatch.instanceno = lasti;
+      let lastinstance = instanceNos[contentmatch.macroname]
+      lastinstance = (lastinstance || lastinstance === 0) ? (lastinstance + 1) : 0;
+      instanceNos[contentmatch.macroname] = lastinstance;
+      contentmatch.instanceno = lastinstance;
       const closingpi = getClosingParensPos(source3, contentmatch.index + contentmatch[0].length);
       // const text = source3.substring(contentmatch.index, closingpi + 1);
       contentmatch.content = source3.substring(
         contentmatch.index + contentmatch[0].length,
         closingpi,
       );
-      const [s] = replaceInstance2(contentmatch, newsource, source3, lasti);
+
+      const [s] = replaceInstance2(contentmatch, newsource, source3, 0);
       newsource = s;
       newsource += source3.substring(closingpi + 1);
     }
