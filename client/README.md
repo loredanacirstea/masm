@@ -11,12 +11,12 @@ You can use it as a Remix IDE local plugin: http://remix-alpha.ethereum.org.
 
 - works on http://remix-alpha.ethereum.org - Remix alpha version, on http
 - activate the `Run and Deploy Transactions` plugin
-- name the plugin: `mevm`
+- name the plugin: `masm`
 - url: `http://localhost:8080`
 - location: `Side Panel`
 
 - write your assembly text or load an example from the plugin
-- open the mevm plugin & click the `Compile` button
+- open the masm plugin & click the `Compile` button
 
 - to deploy, go to the deployment step (top right)
 - enter deployment arguments in hex format, if any

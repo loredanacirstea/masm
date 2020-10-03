@@ -1,6 +1,6 @@
 module.exports = {
-  publicPath: '/mevm',
-  baseUrl: '/mevm',
+  publicPath: '/masm',
+  baseUrl: '/masm',
   chainWebpack: config => {
     config.module.rule('eslint').exclude.add(/yulp|mevm|evmasm|taylor/);
   },
