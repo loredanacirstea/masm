@@ -1,5 +1,8 @@
 import Vue from 'vue';
 import Vuex from 'vuex';
+import { ethers } from 'ethers';
+import taylor from '@pipeos/taylor';
+import compiledTaylor from '@pipeos/taylor/build/taylor.js';
 
 import {createIframeClient} from '@remixproject/plugin';
 
@@ -11,8 +14,12 @@ export default new Vuex.Store({
     fileName: '',
     source: '',
     compiled: {},
+    deployedContracts: [],
     storageItems: {},
     backend: 'mevm',
+    provider: null,
+    signer: null,
+    taylor: null,
   },
   mutations: {
     setState(state, {field, data}) {
@@ -20,6 +27,15 @@ export default new Vuex.Store({
     },
     setBackend(state, value) {
       state.backend = value;
+    },
+    setCalldata(state, value) {
+      if (
+        state.deployedContracts
+        && state.deployedContracts[0]
+        && state.deployedContracts[0].receipt
+      ) {
+        state.deployedContracts[0].calldata = value;
+      }
     },
   },
   actions: {
@@ -36,6 +52,12 @@ export default new Vuex.Store({
         dispatch('setCurrentFile', fileName);
       });
     },
+    listenRemixProvider({state, commit, dispatch}) {
+      const {remixclient} = state;
+      remixclient.network.on('providerChanged', (provider) => {
+        commit('setState', {field: 'taylor', data: null});
+      })
+    },
     async setCurrentFile({state, commit}, newFileName) {
       const {remixclient} = state;
 
@@ -48,6 +70,7 @@ export default new Vuex.Store({
       const source = await remixclient.fileManager.getFile(newFileName).catch(console.log);
       commit('setState', {field: 'fileName', data: newFileName});
       commit('setState', {field: 'source', data: source});
+      commit('setState', {field: 'deployedContracts', data: []});
     },
     async remotefetch({dispatch}, {url, key}) {
       const response = await fetch(url).catch(console.log);
@@ -73,6 +96,72 @@ export default new Vuex.Store({
       filename = `browser/${filename}`;
       return remixclient.fileManager.getFile(filename).catch(console.log);
     },
+    providerfetch({state, commit}) {
+      let { provider, signer } = state;
+      if (provider) return { provider, signer };
+
+      if (window.ethereum) {
+        try {
+          provider = new ethers.providers.Web3Provider(window.ethereum)
+        } catch (e) {
+          console.log('Use a web3-enabled wallet.')
+        }
+        if (provider) signer = provider.getSigner(0);
+
+        commit('setState', {field: 'provider', data: provider});
+        commit('setState', {field: 'signer', data: signer});
+        return { provider, signer };
+      }
+      console.log('Use a web3-enabled wallet.');
+      return {};
+    },
+    async taylorfetch({state, commit, dispatch}) {
+      let tay = state.taylor;
+      if (!tay) {
+        const {remixclient} = state;
+        const rprovider = await remixclient.network.getNetworkProvider();
+        if (rprovider === 'vm') {
+          // deploy taylor interpreter
+          const transaction = {
+            data: '0x' + compiledTaylor.bytecode.object,
+            gasLimit: 7500000,
+            value: 0,
+            gasPrice: 50 * (10**9),
+          };
+          // const receipt = await dispatch('runFunction', {transaction});
+          // console.log('receipt', receipt);
+
+          const accounts = await remixclient.udapp.getAccounts().catch(console.log);
+          transaction.from = accounts[0];
+
+          let receipt;
+          try {
+            receipt = await remixclient.udapp.sendTransaction(transaction);
+          } catch (e) {
+            receipt = {error: e.message}
+          }
+
+          tay = {address: receipt.createdAddress, ...taylor};
+        } else {
+          const { provider, signer } = await dispatch('providerfetch');
+          if (!provider) return null;
+          tay = await taylor.default(provider, signer);
+          await tay.init();
+        }
+
+        commit('setState', {field: 'taylor', data: tay});
+      }
+      commit('setState', {
+        field: 'deployedContracts',
+        data: [{
+          name: 'Taylor Interpreter',
+          receipt: {createdAddress: tay.address},
+          abi: [],
+        }],
+      });
+
+      return tay;
+    },
     async compileFile({state}, {name, source, backend}) {
       const {remixclient, fileName} = state;
       const settings = {
@@ -90,7 +179,65 @@ export default new Vuex.Store({
 
       console.log('settings', settings);
 
-      return remixclient.call('solidity', 'compileWithParameters', contract, settings);
+      const compiled = await remixclient.call('solidity', 'compileWithParameters', contract, settings);
+      console.log('--compiled', compiled);
+      return compiled;
+    },
+    async deploy({state, commit}, {deployArgs}) {
+      const {compiled, remixclient} = state;
+      const accounts = await remixclient.udapp.getAccounts().catch(console.log);
+      const args = deployArgs && deployArgs.slice(0, 2) === '0x' ? deployArgs.slice(2) : deployArgs;
+      const data = `0x${compiled.evm.bytecode.object}${args}`;
+      const transaction = {
+        from: accounts[0],
+        data,
+        gasLimit: 9000000,
+        value: '0',
+        useCall: false,
+      };
+      console.log('transaction', transaction);
+      const receipt = await remixclient.udapp.sendTransaction(transaction);
+      console.log('receipt', receipt);
+      let deployedContracts;
+
+      if (receipt.error) {
+        deployedContracts = [{
+          receipt,
+          abi: [],
+        }];
+      } else {
+        // keep only one contract for now
+        // TODO: fixme
+        deployedContracts = [{
+          receipt,
+          abi: compiled.abi,
+        }];
+      }
+
+      commit('setState', {field: 'deployedContracts', data: deployedContracts});
+      return deployedContracts;
+    },
+    async runFunction({state}, {transaction}) {
+      const {remixclient, backend} = state;
+
+      console.log('transaction', transaction);
+
+      const accounts = await remixclient.udapp.getAccounts().catch(console.log);
+      transaction.from = accounts[0];
+
+      let receipt;
+      try {
+        receipt = await remixclient.udapp.sendTransaction(transaction);
+      } catch (e) {
+        receipt = {error: e.message}
+      }
+      console.log('receipt', receipt);
+
+      if (backend === 'taylor') {
+        receipt.data = receipt.return;
+        receipt.return = await state.taylor.decode(receipt.data);
+      }
+      return receipt;
     },
   },
 });

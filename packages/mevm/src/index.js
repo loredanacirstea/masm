@@ -2,7 +2,9 @@ const getmacrosRg = /%macro\s.*?%endmacro/gs;
 const getmacroListsRg = /%macrolist\s.*?%endmacrolist/gs;
 const getstline = /(?<=%macro).*/;
 const getstlineList = /(?<=%macrolist).*/;
-const getinstance = (name, flag = 'g') => new RegExp(`(?<!%macro\\s*)${name}\\s.*`, flag);
+const getinstance = (name, flag = 'g') => new RegExp(`(?<!%macro\\s*)${name} .*`, flag);
+// const getinstance_noparams = (name, flag = 'g') => new RegExp(`(?<!%macro\\s*)${name}(?:\\n)`, flag);
+const getinstance2 = (name, flag = 'g') => new RegExp(`(?<!%macro\\s*)${name}\\s.*`, flag);
 const DEF_ARG_SEP = '"';
 const ARG_SEP = ' ';
 const PARAM_SEP = ',';
@@ -15,6 +17,13 @@ const paramTemplateRegex = paramArray => {
     return param.text;
   }).join('\\s*')
   return new RegExp(regextxt);
+}
+
+const getInstanceMatches = (source, name) => {
+  const inst = getinstance(name);
+  // const no_paraminst = getinstance_noparams(name);
+  return [...source.matchAll(inst)]
+  // return [...source.matchAll(no_paraminst)].concat([...source.matchAll(inst)]);
 }
 
 if (window) {
@@ -89,16 +98,18 @@ function getMacros(source) {
       macroArgs.index + macroArgs[0].length,
       match[0].length - (match.list ? END_LEN_LIST : END_LEN),
     );
-    let fn = (content, margs) => {
+    let fn = (match, margs) => {
+      const { content, instanceno } = match;
       let body = macrobody;
       margs.forEach((val, i) => {
         body = body.replace(new RegExp(`%${i}`, 'g'), val);
       });
       body = body.replace(/%incount/g, margs.length);
+      body = body.replace(/%instance/g, instanceno);
 
       // Separate js template string content from normal content
       const bodyfragments = macroContentExtract(body);
-      console.log('bodyfragments', bodyfragments);
+      // console.log('bodyfragments', bodyfragments);
 
       body = bodyfragments.map(fragment => {
         let txt = fragment.text;
@@ -111,14 +122,16 @@ function getMacros(source) {
             // eslint-disable-next-line no-eval
             return eval(text);
           }
-          return evaluate(txt);
+          const res = evaluate(txt);
+          return res;
         }
         return content ? txt.replace('%content', content) : txt;
       }).join('');
       return body;
     }
     if (match.list) {
-      fn = (content, margs) => {
+      fn = (match, margs) => {
+        const { content } = match;
         let body = '';
         margs.forEach((val) => {
           body += macrobody.replace(/%x/g, val);
@@ -157,8 +170,7 @@ function compile(source, macrodefs) {
   const usematches = Object.keys(macros)
     .filter(name => !macros[name].hascontent)
     .map(name => {
-      const usereg = getinstance(name);
-      return [...source2.matchAll(usereg)].map((val, i) => {
+      return getInstanceMatches(source2, name).map((val, i) => {
         val.macroname = name;
         val.instanceno = i;
         instanceNos[val.macroname] = i;
@@ -178,7 +190,7 @@ function compile(source, macrodefs) {
     if (macros[name].template) {
       params = extractParams(macros[name].template, usematch[0], name, macros[name].list)
     }
-    const text = macros[name].fn(usematch.content, params).trim();
+    const text = macros[name].fn(usematch, params).trim();
     const usercommenti = usematch[0].indexOf('//');
     const usercomment = usercommenti > -1 ? usematch[0].substring(usercommenti) : '';
     const comment = `/* (${usematch.instanceno}) ${name} ${params.join(', ')}   ${usercomment}   */\n`;
@@ -219,7 +231,7 @@ function compile(source, macrodefs) {
       .trim()
       .split(PARAM_SEP)
       .map(val => val.trim());
-    const text = macros[name].fn(usematch.content, params).trim();
+    const text = macros[name].fn(usematch, params).trim();
     // const comment = `/* (${usematch.instanceno}) ${name} ${params.join(', ')}    */\n`;
     const comment = '\n';
     _newsource += oldsource.substring(_lasti, usematch.index) + comment + text;
