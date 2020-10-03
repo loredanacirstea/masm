@@ -1,5 +1,5 @@
 {
-  "name": "mevm-client",
+  "name": "masm-client",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -50,5 +50,5 @@
       "git add"
     ]
   },
-  "homepage": "/mevm"
+  "homepage": "/masm"
 }

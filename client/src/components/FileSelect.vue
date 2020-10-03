@@ -33,7 +33,7 @@ export default {
         {
           id: 1,
           name: 'counter',
-          url: 'https://raw.githubusercontent.com/loredanacirstea/mevm/master/client/public/examples/Counter.asm',
+          url: 'https://raw.githubusercontent.com/loredanacirstea/masm/master/client/public/examples/Counter.asm',
           filename: 'counter.asm',
         },
         {
