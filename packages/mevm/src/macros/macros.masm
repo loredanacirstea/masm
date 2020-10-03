@@ -20,15 +20,122 @@
     calldatacopy
 %endmacro
 
-%macro mload "mload %0"
+%macro mreturn "return %0 %1"
+    %1
+    %0
+    return
+%endmacro
+
+%macro mmstore "mstore %0 %1"
+    %1
+    %0
+    mstore
+%endmacro
+
+%macro mmload "mload %0 %1"
+    %1
     %0
     mload
 %endmacro
 
-%macro return "return %0 %1"
-    %1
-    %0
-    return
+%macro mfor_mem
+    // expects tag, end, start
+    %0     // location of current frame ptr
+    mload  // current frame ptr
+    %1     // adding the offset to for data - start_ptr
+    add    // the pointer at which the for data should be
+
+    // tag, end, start, start_ptr
+
+    swap3   // start_ptr, end, start, tag
+    dup4
+    0x40
+    add
+    mstore   // store tag
+
+    dup3    // start_ptr, end, start, start_ptr
+    mstore  // store start
+
+    swap1   // end, start_ptr
+    0x20
+    add
+    mstore  // store end
+
+    for_%instance:
+        %0     // location of current frame ptr
+        mload  // current frame ptr
+        %1     // adding the offset to extra_ptr
+        add
+
+        dup1    // load end
+        0x20
+        add
+        mload
+
+        swap1
+        mload   // load start
+
+        lt
+        forloop_%instance
+        jumpi
+
+        %0     // location of current frame ptr
+        mload  // current frame ptr
+        %1     // adding the offset to extra_ptr
+        add
+
+        0x40   // load tag
+        add
+        mload
+        jump
+    forloop_%instance:
+        `${%content.replace(/%forloop_end\W/g, "forloop_end_%instance")}`
+    forloop_end_%instance:
+
+        %0     // location of current frame ptr
+        mload  // current frame ptr
+        %1     // adding the offset to extra_ptr
+        add    // the pointer at which the extra_ptr should be
+
+        dup1
+        mload  // load start
+
+        0x01   // increase start
+        add
+        swap1
+        mstore
+
+        for_%instance
+        jump
+%endmacro
+
+%macro mfor_stack
+    for_stack_%instance:
+        dup2   // end
+        dup2   // start
+        lt
+        forloop_stack_%instance
+        jumpi
+        pop    // pop end, step
+        pop
+        jump
+    forloop_stack_%instance:   // any content variables are kept after jumptag, end, step
+        `${%content.replace(/%forloop_end_stack\W/g, "forloop_end_stack_%instance")}`
+    forloop_end_stack_%instance:
+        0x01   // start/step first
+        add
+        for_stack_%instance
+        jump
+%endmacro
+
+%macro mif
+    // return tag, condition
+    mif_%instance
+    jumpi
+
+    mif_%instance:
+        %content    // anything left on stack is behind return tag
+        jump
 %endmacro
 
 %macrolist loadvals ","
@@ -36,7 +143,222 @@
     mload
 %endmacrolist
 
-%macro repeat
+%macro mrepeat
    ` ${%content.repeat(%0)}
    `
+%endmacro
+
+%macro let "let %0 := %1"
+   ` let %0 := ${ %1 + this.vars.test }
+   `
+%endmacro
+
+%macro allocate
+    %0
+    mload
+    swap1
+    dup2
+    add
+    %0
+    mstore
+%endmacro
+
+
+
+%macro mmultimstore
+            // alloc before using it
+            // size_bytes, source_ptr, target_ptr
+            dup3   // size_bytes
+
+            // calc slots
+            0x20
+            dup2
+            div
+
+            0x00
+            0x20
+            dup4
+            mod
+            gt
+            add
+
+            swap1
+            pop
+
+            // end calc slots
+
+            swap3            // slots, source_ptr, target_ptr ; replace length with slots
+            pop
+
+            mmultimstore_end_%instance
+            dup4             // slots
+            0x00
+            mfor_stack {
+                // slots, source_ptr, target_ptr, tag, end, step
+                dup5
+                mload
+                dup5
+                mstore
+
+                dup5
+                0x20
+                add
+                swap5
+                pop
+
+                dup4
+                0x20
+                add
+                swap4
+                pop
+            }
+        mmultimstore_end_%instance:
+            pop
+            pop
+            pop
+%endmacro
+
+%macro mmultisstore
+            // alloc before using it
+            // size_bytes, source_ptr, key
+            dup3   // size_bytes
+
+            // calc slots
+            0x20
+            dup2
+            div
+
+            0x00
+            0x20
+            dup4
+            mod
+            gt
+            add
+
+            swap1
+            pop
+
+            // end calc slots
+
+            swap3            // slots, source_ptr, key ; replace length with slots
+            pop
+
+            swap1
+            swap2     // source_ptr, key, slots
+
+            mmultisstore_end_%instance
+            swap1             // source_ptr, key, tag, slots/end
+            0x00
+            mfor_stack {
+                // source_ptr, key, tag, end, step
+
+                dup5
+                mload
+                dup5
+                sstore
+
+                dup5
+                0x20
+                add
+                swap5
+                pop
+
+                dup4
+                0x01
+                add
+                swap4
+                pop
+            }
+        mmultisstore_end_%instance:
+            pop
+            pop
+%endmacro
+
+
+%macro mmultisload
+            // alloc before using it
+            // key
+            dup1  // key, key
+
+            dup1
+            0x01
+            add   // key, key, key2
+            swap2
+            pop  // key2, key
+
+            sload  // key2, length
+            dup1  // key2, length, length
+            0x20
+            add   // account for length
+
+            // alloc
+            %0
+            mload
+            swap1
+            dup2
+            add
+            %0
+            mstore
+            // alloc - end
+
+            // key2, length, target_ptr
+
+            // save length at ptr
+            dup2
+            dup2
+            mstore  // key2, length, target_ptr
+
+            dup1     // key2, length, target_ptr, target_ptr
+            0x20
+            add     // key2, length, target_ptr, current_target_ptr
+            swap1   // key2, length, current_target_ptr, target_ptr
+            swap3    // target_ptr, length, current_target_ptr, key2
+            swap2    // target_ptr, key2, current_target_ptr, length
+
+            // calc slots
+            0x20
+            dup2
+            div
+
+            0x00
+            0x20
+            dup4
+            mod
+            gt
+            add
+
+            swap1
+            pop
+
+            // end calc slots
+
+            // target_ptr, key2, current_target_ptr, slots
+            swap2 // target_ptr, slots, current_target_ptr, key2
+
+            mmultisload_end_%instance
+            dup4             // slots
+            0x00
+            mfor_stack {
+                // target_ptr, slots, target_ptr, key2, tag, end, step
+                dup4
+                sload   // target_ptr, slots, current_target_ptr, key2, tag, end, step, value
+                dup6    // target_ptr, slots, current_target_ptr, key2, tag, end, step, value, current_target_ptr
+                mstore  // target_ptr, slots, current_target_ptr, key2, tag, end, step
+
+                dup5
+                0x20
+                add
+                swap5
+                pop
+
+                dup4
+                0x01
+                add
+                swap4
+                pop
+            }
+        mmultisload_end_%instance:
+            pop
+            pop
+            pop   // leave target_ptr on stack
 %endmacro
