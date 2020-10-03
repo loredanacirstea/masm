@@ -79,7 +79,7 @@
 import Vue from 'vue';
 import { mapState } from 'vuex';
 import VueAwesomeSwiper from 'vue-awesome-swiper';
-import evmasm from 'evmasm';
+import evmasm from '@pipeos/evmasm';
 import mevm from 'mevm';
 import yulp from 'yulp';
 // eslint-disable-next-line
@@ -112,6 +112,7 @@ export default {
         {id: 'masm', name: 'masm'},
         {id: 'asm', name: 'asm'},
         {id: 'hex', name: 'hex'},
+        {id: 'taylor', name: 'taylor'},
         {id: 'yul', name: 'yul'},
         {id: 'yulp', name: 'yul+'},
         {id: 'sol', name: 'sol'},
@@ -147,6 +148,7 @@ export default {
     async setRemixFile() {
       this.$store.dispatch('listenCurrentFile');
       this.$store.dispatch('setCurrentFile');
+      this.$store.dispatch('listenRemixProvider');
     },
     onSwiperPrev() {
       this.swiper.slidePrev();
@@ -182,17 +184,19 @@ export default {
       let compiled;
 
       if (!forcebackend) {
-        if (fileName.includes('masm')) {
+        if (fileName.endsWith('.masm')) {
           back = 'masm';
-        } else if (fileName.includes('asm')) {
+        } else if (fileName.endsWith('.asm')) {
           back = 'asm';
-        } else if (fileName.includes('hex')) {
+        } else if (fileName.endsWith('.hex')) {
           back = 'hex';
-        } else if (fileName.includes('.yulp')) {
+        } else if (fileName.endsWith('.tay')) {
+          back = 'taylor';
+        } else if (fileName.endsWith('.yulp')) {
           back = 'yulp';
-        } else if (fileName.includes('.yul')) {
+        } else if (fileName.endsWith('.yul')) {
           back = 'yul';
-        } else if (fileName.includes('sol')) {
+        } else if (fileName.endsWith('.sol')) {
           back = 'sol';
         }
 
@@ -212,6 +216,8 @@ export default {
         compiled = {evm: {bytecode: {object: source}}};
       } else if (back === 'masm') {
         compiled = await this.onCompileMasm(source);
+      } else if (back === 'taylor') {
+        compiled = await this.onCompileTaylor(source);
       } else {
         compiled = await this.onCompileAsm(source);
       }
@@ -262,6 +268,14 @@ export default {
       const source2 = mevm.compile(source, localMacros);
       const compiled = this.onCompileAsm(source2);
       compiled.abi = abiExtract(source);
+      return compiled;
+    },
+    async onCompileTaylor(source) {
+      const taylor = await this.$store.dispatch('taylorfetch');
+      const compiled = {evm: {bytecode: {}}};
+
+      compiled.evm.bytecode.object = await taylor.expr2h(source);
+      this.$store.commit('setCalldata', compiled.evm.bytecode.object);
       return compiled;
     },
     async onCompileYul(source, fileName) {

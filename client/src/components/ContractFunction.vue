@@ -47,10 +47,10 @@
 import { getTransaction } from '../utils/ether.js';
 
 export default {
-  props: ['abi', 'address', 'txGasLimit', 'txValue'],
+  props: ['abi', 'address', 'txGasLimit', 'txValue', 'calldata'],
   data() {
     return {
-      functionArgs: '',
+      functionArgs: this.calldata || '',
       errorMessages: [],
       output: null,
       colorMap: {
@@ -61,6 +61,11 @@ export default {
       },
       calldataStateMutability: 'payable',
     };
+  },
+  watch: {
+    calldata(newvalue) {
+      this.functionArgs = newvalue;
+    },
   },
   methods: {
     inputsStr(inputs) {
@@ -94,7 +99,6 @@ export default {
       return parsed;
     },
     async runFunction() {
-      const {remixclient} = this.$store.state;
       const {
         abi,
         address,
@@ -104,7 +108,6 @@ export default {
         calldataStateMutability,
       } = this;
 
-      const accounts = await remixclient.udapp.getAccounts().catch(console.log);
       const useCall = !(abi.calldata
         ? calldataStateMutability
         : abi.stateMutability
@@ -114,7 +117,6 @@ export default {
         : getTransaction(abi, this.argsValueCheck(functionArgs));
 
       const transaction = {
-        from: accounts[0],
         to: address,
         data,
         gasLimit: txGasLimit,
@@ -122,13 +124,8 @@ export default {
         useCall,
       };
       console.log('transaction', transaction);
-      let receipt;
-      try {
-        receipt = await remixclient.udapp.sendTransaction(transaction);
-      } catch (e) {
-        receipt = {error: e.message}
-      }
-      console.log('receipt', receipt);
+
+      const receipt = await this.$store.dispatch('runFunction', {transaction});
       this.output = JSON.stringify(receipt);
     },
   },

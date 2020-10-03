@@ -5,6 +5,7 @@
       :address="address"
       :txGasLimit="txGasLimit"
       :txValue="txValue"
+      :calldata="calldata"
     />
     <v-layout v-for="(fabi, i) in abi" :key="i">
       <v-flex xs12 v-if="fabi.type === 'function'">
@@ -24,7 +25,7 @@ import ContractFunction from './ContractFunction';
 
 export default {
   components: { ContractFunction },
-  props: ['abi', 'address', 'txGasLimit', 'txValue'],
+  props: ['abi', 'address', 'txGasLimit', 'txValue', 'calldata'],
   data() {
     return {
       calldataAbi: {

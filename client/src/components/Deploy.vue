@@ -77,8 +77,9 @@
       </v-flex>
       <v-flex xs12 v-else v-for="(deployed, i) in deployedContracts" :key="i">
         <v-flex xs12>
+          <p v-if="deployed.name">{{deployed.name}}</p>
           <p>Address: {{deployed.receipt.createdAddress}}</p>
-          <p>TxHash: {{deployed.receipt.transactionHash}}</p>
+          <p v-if="deployed.receipt.transactionHash">TxHash: {{deployed.receipt.transactionHash}}</p>
         </v-flex>
         <DeployedContract
             :key="`contract_${i}`"
@@ -86,6 +87,7 @@
             :address="deployed.receipt.createdAddress"
             :txGasLimit="txGasLimit"
             :txValue="txValue"
+            :calldata="deployed.calldata"
         />
         <v-divider></v-divider>
       </v-flex>
@@ -110,15 +112,18 @@ export default {
     return {
       contractSelect: null,
       deployArgs: '',
-      deployAddress: null,
+      // deployAddress: null,
       txGasLimit: 4000000,
       txValue: 0,
-      deployedContracts: [],
-      currentError: null,
     };
   },
   computed: mapState({
     compiled: state => state.compiled,
+    deployedContracts: state => state.deployedContracts,
+    currentError: state => {
+      const {deployedContracts} = state;
+      return deployedContracts && deployedContracts[0] && deployedContracts[0].receipt && deployedContracts[0].receipt.error;
+    },
     shortFileName: state => state.fileName.replace('browser/', ''),
   }),
   watch: {
@@ -135,43 +140,11 @@ export default {
   methods: {
     reset() {
       // this.deployArgs = '';
-      this.deployAddress = null;
-      this.deployedContracts = [];
-      this.currentError = null;
+      // this.deployAddress = null;
     },
-    async deploy() {
-      const {compiled, deployArgs} = this;
-      const {remixclient} = this.$store.state;
-
-      const accounts = await remixclient.udapp.getAccounts().catch(console.log);
-      const args = deployArgs && deployArgs.slice(0, 2) === '0x' ? deployArgs.slice(2) : deployArgs;
-      const data = `0x${compiled.evm.bytecode.object}${args}`;
-      const transaction = {
-        from: accounts[0],
-        data,
-        gasLimit: 9000000,
-        value: '0',
-        useCall: false,
-      };
-      console.log('transaction', transaction);
-      const receipt = await remixclient.udapp.sendTransaction(transaction);
-      console.log('receipt', receipt);
-
-      if (receipt.error) {
-        this.currentError = receipt.error;
-        this.deployedContracts = [{
-          receipt,
-          abi: [],
-        }];
-      } else {
-        this.currentError = null;
-        // keep only one contract for now
-        // TODO: fixme
-        this.deployedContracts = [{
-          receipt,
-          abi: compiled.abi,
-        }];
-      }
+    deploy() {
+      const {deployArgs} = this;
+      this.$store.dispatch('deploy', {deployArgs});
     },
   },
 };
