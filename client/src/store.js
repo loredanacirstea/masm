@@ -2,6 +2,7 @@ import Vue from 'vue';
 import Vuex from 'vuex';
 import { ethers } from 'ethers';
 import taylor from '@pipeos/taylor';
+import compiledTaylor from '@pipeos/taylor/build/taylor.js';
 
 import {createIframeClient} from '@remixproject/plugin';
 
@@ -51,12 +52,10 @@ export default new Vuex.Store({
         dispatch('setCurrentFile', fileName);
       });
     },
-    listenRemixProvider({state, dispatch}) {
+    listenRemixProvider({state, commit, dispatch}) {
       const {remixclient} = state;
       remixclient.network.on('providerChanged', (provider) => {
-        if (provider === 'vm') {
-
-        }
+        commit('setState', {field: 'taylor', data: null});
       })
     },
     async setCurrentFile({state, commit}, newFileName) {
@@ -117,12 +116,38 @@ export default new Vuex.Store({
       return {};
     },
     async taylorfetch({state, commit, dispatch}) {
-      if (!state.taylor) {
-        const { provider, signer } = await dispatch('providerfetch');
-        if (!provider) return null;
-        const tay = await taylor.default(provider, signer);
-        console.log('tay', tay);
-        await tay.init();
+      let tay = state.taylor;
+      if (!tay) {
+        const {remixclient} = state;
+        const rprovider = await remixclient.network.getNetworkProvider();
+        if (rprovider === 'vm') {
+          // deploy taylor interpreter
+          const transaction = {
+            data: '0x' + compiledTaylor.bytecode.object,
+            gasLimit: 7500000,
+            value: 0,
+            gasPrice: 50 * (10**9),
+          };
+          // const receipt = await dispatch('runFunction', {transaction});
+          // console.log('receipt', receipt);
+
+          const accounts = await remixclient.udapp.getAccounts().catch(console.log);
+          transaction.from = accounts[0];
+
+          let receipt;
+          try {
+            receipt = await remixclient.udapp.sendTransaction(transaction);
+          } catch (e) {
+            receipt = {error: e.message}
+          }
+
+          tay = {address: receipt.createdAddress, ...taylor};
+        } else {
+          const { provider, signer } = await dispatch('providerfetch');
+          if (!provider) return null;
+          tay = await taylor.default(provider, signer);
+          await tay.init();
+        }
 
         commit('setState', {field: 'taylor', data: tay});
       }
@@ -130,12 +155,12 @@ export default new Vuex.Store({
         field: 'deployedContracts',
         data: [{
           name: 'Taylor Interpreter',
-          receipt: {createdAddress: state.taylor.address},
+          receipt: {createdAddress: tay.address},
           abi: [],
         }],
       });
 
-      return state.taylor;
+      return tay;
     },
     async compileFile({state}, {name, source, backend}) {
       const {remixclient, fileName} = state;
