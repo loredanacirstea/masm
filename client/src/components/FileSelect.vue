@@ -17,7 +17,7 @@
 
 <script>
 
-import mevm from 'mevm';
+import mevm from 'masm';
 
 export default {
   data() {

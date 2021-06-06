@@ -80,7 +80,7 @@ import Vue from 'vue';
 import { mapState } from 'vuex';
 import VueAwesomeSwiper from 'vue-awesome-swiper';
 import evmasm from '@pipeos/evmasm';
-import mevm from 'mevm';
+import mevm from 'masm';
 import yulp from 'yulp';
 // eslint-disable-next-line
 import 'swiper/dist/css/swiper.css';
