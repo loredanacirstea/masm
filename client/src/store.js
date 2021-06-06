@@ -16,7 +16,7 @@ export default new Vuex.Store({
     compiled: {},
     deployedContracts: [],
     storageItems: {},
-    backend: 'mevm',
+    backend: 'masm',
     provider: null,
     signer: null,
     taylor: null,
@@ -82,12 +82,12 @@ export default new Vuex.Store({
     },
     localfetch({state, commit}, key) {
       const { storageItems } = state;
-      storageItems[key] = localStorage.getItem(`mevm_${key}`);
+      storageItems[key] = localStorage.getItem(`masm_${key}`);
       commit('setState', {field: 'storageItems', data: storageItems});
     },
     setlocal({state, commit}, {key, source}) {
       const { storageItems } = state;
-      localStorage.setItem(`mevm_${key}`, source);
+      localStorage.setItem(`masm_${key}`, source);
       storageItems[key] = source;
       commit('setState', {field: 'storageItems', data: storageItems});
     },

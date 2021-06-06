@@ -17,7 +17,7 @@
 
 <script>
 
-import mevm from 'masm';
+import masm from 'masm';
 
 export default {
   data() {
@@ -39,15 +39,15 @@ export default {
         {
           id: 2,
           name: 'macros github',
-          url: mevm.url,
+          url: masm.url,
           save: true,
-          filename: mevm.filename,
+          filename: masm.filename,
         },
         {
           id: 3,
           name: 'macros localStorage',
-          key: mevm.key,
-          disabled: !this.$store.dispatch('localfetch', mevm.key),
+          key: masm.key,
+          disabled: !this.$store.dispatch('localfetch', masm.key),
           filename: 'masm_macros_local.masm',
         },
       ],

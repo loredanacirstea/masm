@@ -80,7 +80,7 @@ import Vue from 'vue';
 import { mapState } from 'vuex';
 import VueAwesomeSwiper from 'vue-awesome-swiper';
 import evmasm from '@pipeos/evmasm';
-import mevm from 'masm';
+import masm from 'masm';
 import yulp from 'yulp';
 // eslint-disable-next-line
 import 'swiper/dist/css/swiper.css';
@@ -258,14 +258,14 @@ export default {
       return compiled;
     },
     async onCompileMasm(source) {
-      const remixMacros = await this.$store.dispatch('remixfetch', mevm.filename);
+      const remixMacros = await this.$store.dispatch('remixfetch', masm.filename);
       if (remixMacros) {
-        this.$store.dispatch('setlocal', {key: mevm.key, source: remixMacros});
+        this.$store.dispatch('setlocal', {key: masm.key, source: remixMacros});
       }
-      let localMacros = this.$store.state.storageItems[mevm.key];
-      if (!localMacros) localMacros = await this.$store.dispatch('remotefetch', mevm);
+      let localMacros = this.$store.state.storageItems[masm.key];
+      if (!localMacros) localMacros = await this.$store.dispatch('remotefetch', masm);
 
-      const source2 = mevm.compile(source, localMacros);
+      const source2 = masm.compile(source, localMacros);
       const compiled = this.onCompileAsm(source2);
       compiled.abi = abiExtract(source);
       return compiled;
