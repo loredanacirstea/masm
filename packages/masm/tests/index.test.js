@@ -11,11 +11,6 @@ test('compile', () => {
     expect(trimallspace(result)).toBe(trimallspace(tests[0].result));
 });
 
-test('compile2', () => {
-    const result = masm.compile(tests[1].source, macros);
-    expect(trimallspace(result)).toBe(trimallspace(tests[1].result));
-});
-
 function trimallspace(source) {
     return source.replace(/\s*/g, '');
 }
