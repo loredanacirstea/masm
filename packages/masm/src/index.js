@@ -1,13 +1,19 @@
 const getmacrosRg = /%macro\s.*?%endmacro/gs;
 const getmacroListsRg = /%macrolist\s.*?%endmacrolist/gs;
-const getstline = /(?<=%macro).*/;
-const getstlineList = /(?<=%macrolist).*/;
-const getinstance = (name, flag = 'g') => new RegExp(`(?<!%macro\\s*)${name} .*`, flag);
+const getstline = /%macro .*/;
+const getstlineList = /%macrolist .*/;
+
+const getinstance = (name, flag = 'g') => new RegExp(`${name} .*`, flag);
 // const getinstance_noparams = (name, flag = 'g') => new RegExp(`(?<!%macro\\s*)${name}(?:\\n)`, flag);
-const getinstance2 = (name, flag = 'g') => new RegExp(`(?<!%macro\\s*)${name}\\s.*`, flag);
+// const getinstance2 = (name, flag = 'g') => new RegExp(`(\\w* *)${name}\\s.*`, flag)
+const getinstance2 = (name, flag = 'g') => new RegExp(`${name}\\s.*`, flag);
+
+
 const DEF_ARG_SEP = '"';
 const ARG_SEP = ' ';
 const PARAM_SEP = ',';
+const MACRO_LEN = '%macro '.length;
+const MACROLIST_LEN = '%macrolist '.length;
 const END_LEN = '%endmacro'.length;
 const END_LEN_LIST = '%endmacrolist'.length;
 // let\s*([\w\d]*)\s*:=\s*(\w*)
@@ -21,12 +27,10 @@ const paramTemplateRegex = paramArray => {
 
 const getInstanceMatches = (source, name) => {
   const inst = getinstance(name);
-  // const no_paraminst = getinstance_noparams(name);
   return [...source.matchAll(inst)]
-  // return [...source.matchAll(no_paraminst)].concat([...source.matchAll(inst)]);
 }
 
-if (window) {
+if (typeof window !== 'undefined') {
   window.vars = {test: 1};
 }
 
@@ -90,10 +94,17 @@ function getMacros(source) {
     return val;
   }));
   matches = matches.sort((a, b) => a.index - b.index);
-
   matches.forEach(match => {
-    const macroArgs = match[0].match(match.list ? getstlineList : getstline);
-    const [name, template] = macroArgs[0].trim().split(DEF_ARG_SEP).map(val => val.trim());
+    let macroArgs, _macroArgs;
+    if (match.list) {
+      macroArgs = match[0].match(getstlineList);
+      _macroArgs = macroArgs[0].trim().slice(MACROLIST_LEN);
+    } else {
+      macroArgs = match[0].match(getstline);
+      _macroArgs = macroArgs[0].trim().slice(MACRO_LEN);
+    }
+    const [name, template] = _macroArgs.trim().split(DEF_ARG_SEP).map(val => val.trim());
+
     const macrobody = match[0].substring(
       macroArgs.index + macroArgs[0].length,
       match[0].length - (match.list ? END_LEN_LIST : END_LEN),
@@ -163,7 +174,6 @@ function compile(source, macrodefs) {
   const instanceNos = {};
 
   ({ macros, newsource } = getMacros(source));
-  console.log('macros', macros);
 
   const source2 = newsource;
   newsource = '';
@@ -240,23 +250,25 @@ function compile(source, macrodefs) {
   }
 
   while (macrosWContent.length > 0) {
-    lastinstance = 0;
     const source3 = newsource;
     newsource = '';
     const contentmatch = source3.match(getinstance2(macrosWContent[0], ''));
     if (!contentmatch) {
       macrosWContent.shift();
       newsource = source3;
-    } else {
+    }
+    else {
+      const _contentmatch = contentmatch[0].trim();
       contentmatch.macroname = macrosWContent[0];
       let lastinstance = instanceNos[contentmatch.macroname]
       lastinstance = (lastinstance || lastinstance === 0) ? (lastinstance + 1) : 0;
       instanceNos[contentmatch.macroname] = lastinstance;
       contentmatch.instanceno = lastinstance;
-      const closingpi = getClosingParensPos(source3, contentmatch.index + contentmatch[0].length);
-      // const text = source3.substring(contentmatch.index, closingpi + 1);
+
+      const closingpi = getClosingParensPos(source3, contentmatch.index + _contentmatch.length);
+
       contentmatch.content = source3.substring(
-        contentmatch.index + contentmatch[0].length,
+        contentmatch.index + _contentmatch.length,
         closingpi,
       );
 
