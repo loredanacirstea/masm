@@ -518,7 +518,7 @@
 
 %macro mmultisstore
             // alloc before using it
-            // size_bytes, source_ptr, key
+            // size_bytes, source_ptr, storage key
             dup3   // size_bytes
 
             // calc slots
