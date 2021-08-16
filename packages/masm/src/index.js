@@ -3,6 +3,8 @@ const getmacroListsRg = /%macrolist\s.*?%endmacrolist/gs;
 const getstline = /%macro .*/;
 const getstlineList = /%macrolist .*/;
 
+const getmswitchRg = /%mswitch\s.*?%endmswitch/gs;
+
 const getinstance = (name, flag = 'g') => new RegExp(`${name} .*`, flag);
 // const getinstance_noparams = (name, flag = 'g') => new RegExp(`(?<!%macro\\s*)${name}(?:\\n)`, flag);
 // const getinstance2 = (name, flag = 'g') => new RegExp(`(\\w* *)${name}\\s.*`, flag)
@@ -166,7 +168,56 @@ function getMacros(source) {
   return { macros, newsource };
 }
 
-function compile(source, macrodefs) {
+function getSwitches (source) {
+  const labelRg = /%mswitch (\w*)\b/;
+  const END_LEN = '%endmswitch'.length;
+  const mswitches = {};
+  let newsource = '';
+  let lastindex = 0;
+  let matches = [...source.matchAll(getmswitchRg)];
+
+  for (let match of matches) {
+    const labelMatch = match[0].match(labelRg);
+    const label = labelMatch[1];
+    const macrobody = match[0].substring(
+      match[0].indexOf('\n') + 1,
+      match[0].length - END_LEN,
+    ).trim();
+
+    const sublabels = macrobody.split(/\s/).filter(v => v !== '');
+    mswitches[label] = sublabels;
+    newsource = newsource + source.substring(lastindex, match.index);
+    lastindex = match.index + match[0].length;
+  }
+
+  newsource = newsource + source.substring(lastindex);
+  return { mswitches, newsource };
+}
+
+function replaceMSwitch (source, label, sublabels, value) {
+  for (let sublabel of sublabels) {
+    const rg = new RegExp(`${label} ${sublabel}(.*)\\n`, 'g');
+    const matches = [...source.matchAll(rg)];
+    for (let match of matches) {
+      const expectedMacro = sublabel + '_' + value;
+      const maybeComments = match[1];
+      source = source.substring(0, match.index) + maybeComments + '\n' + expectedMacro + '  // ' + '\n' + source.substring(match.index + match[0].length);
+    }
+  }
+  return source;
+}
+
+function handleMSwitch (source, transpileTimeVariables) {
+  let { mswitches, newsource } = getSwitches(source);
+
+  for (let label in mswitches) {
+    newsource = replaceMSwitch(newsource, label, mswitches[label], transpileTimeVariables[label]);
+  }
+  return newsource;
+}
+
+function compile(source, macrodefs, transpileTimeVariables = {}) {
+  source = handleMSwitch(source, transpileTimeVariables);
   source = `${macrodefs}\n\n${source}`;
   let macros = {};
   let newsource = '';
