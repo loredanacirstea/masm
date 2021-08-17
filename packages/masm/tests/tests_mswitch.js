@@ -22,7 +22,7 @@ const tests = [
 %endmacro
 
 %mswitch evmtype
-    esstore esload
+    zeus hermes
 %endmswitch
 
 %mswitch anotherswitch // some comment

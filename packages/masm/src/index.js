@@ -170,6 +170,7 @@ function getMacros(source) {
 
 function getSwitches (source) {
   const labelRg = /%mswitch (\w*)\b/;
+  const sublabelRg = (label) => new RegExp(`${label} (\\w*)\\b`, 'g');
   const END_LEN = '%endmswitch'.length;
   const mswitches = {};
   let newsource = '';
@@ -184,8 +185,14 @@ function getSwitches (source) {
       match[0].length - END_LEN,
     ).trim();
 
-    const sublabels = macrobody.split(/\s/).filter(v => v !== '');
-    mswitches[label] = sublabels;
+    const switchValues = macrobody.split(/\s/).filter(v => v !== '');
+
+    const sublabels = [...source.matchAll(sublabelRg(label))].map(v => v[1]);
+
+    mswitches[label] = {
+      values: switchValues,
+      sublabels,
+    }
     newsource = newsource + source.substring(lastindex, match.index);
     lastindex = match.index + match[0].length;
   }
@@ -201,23 +208,31 @@ function replaceMSwitch (source, label, sublabels, value) {
     for (let match of matches) {
       const expectedMacro = sublabel + '_' + value;
       const maybeComments = match[1];
-      source = source.substring(0, match.index) + maybeComments + '\n' + expectedMacro + '  // ' + '\n' + source.substring(match.index + match[0].length);
+      const replacement = maybeComments + '\n' + expectedMacro + '  // ' + '\n';
+      source = source.substring(0, match.index) + replacement + source.substring(match.index + match[0].length);
     }
   }
   return source;
 }
 
 function handleMSwitch (source, transpileTimeVariables) {
+  let switches = {};
+  source += '\n'; // added for replaceMSwitch regexp
   let { mswitches, newsource } = getSwitches(source);
 
   for (let label in mswitches) {
-    newsource = replaceMSwitch(newsource, label, mswitches[label], transpileTimeVariables[label]);
+    newsource = replaceMSwitch(newsource, label, mswitches[label].sublabels, transpileTimeVariables[label]);
+    switches[label] = mswitches[label].values;
   }
-  return newsource;
+
+  return {mswitches:switches, newsource};
 }
 
-function compile(source, macrodefs, transpileTimeVariables = {}) {
-  source = handleMSwitch(source, transpileTimeVariables);
+function compile(source, macrodefs, transpileTimeVariables) {
+  if (!source) return {source: '', switches: {}};
+  transpileTimeVariables = transpileTimeVariables || {};
+  const {mswitches, newsource: _source} = handleMSwitch(source, transpileTimeVariables);
+  source = _source;
   source = `${macrodefs}\n\n${source}`;
   let macros = {};
   let newsource = '';
@@ -330,7 +345,7 @@ function compile(source, macrodefs, transpileTimeVariables = {}) {
   }
 
   newsource = newsource.trim();
-  return newsource;
+  return {source: newsource, switches: mswitches};
 }
 
 module.exports = {

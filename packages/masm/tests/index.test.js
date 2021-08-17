@@ -20,7 +20,7 @@ describe.only('test mswitch', function () {
     tests_mswitch.forEach((t, i) => {
         t.result.forEach((r, j) => {
             test(`compile_${i}_${j}`, async () => {
-                const result = await masm.compile(t.source, macros, r.params);
+                const {source: result, switches} = await masm.compile(t.source, macros, r.params);
                 expect(trimallspace(result)).toBe(trimallspace(r.result));
             });
         });
