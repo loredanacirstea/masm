@@ -205,12 +205,17 @@ function replaceMSwitch (source, label, sublabels, value) {
   for (let sublabel of sublabels) {
     const rg = new RegExp(`${label} ${sublabel}(.*)\\n`, 'g');
     const matches = [...source.matchAll(rg)];
+    let newsource = '';
+    let lastindex = 0;
     for (let match of matches) {
       const expectedMacro = sublabel + '_' + value;
       const maybeComments = match[1];
       const replacement = maybeComments + '\n' + expectedMacro + '  // ' + '\n';
-      source = source.substring(0, match.index) + replacement + source.substring(match.index + match[0].length);
+      newsource += source.substring(lastindex, match.index) + replacement;
+      lastindex = match.index + match[0].length;
     }
+    newsource += source.substring(lastindex);
+    source = newsource;
   }
   return source;
 }

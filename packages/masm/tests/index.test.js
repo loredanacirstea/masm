@@ -11,12 +11,12 @@ describe('test macros', function () {
     tests_macros.forEach((t, i) => {
         test('compile_' + i, async () => {
             const result = await masm.compile(t.source, macros);
-            expect(trimallspace(result)).toBe(trimallspace(t.result));
+            expect(trimallspace(result.source)).toBe(trimallspace(t.result));
         });
     });
 });
 
-describe.only('test mswitch', function () {
+describe('test mswitch', function () {
     tests_mswitch.forEach((t, i) => {
         t.result.forEach((r, j) => {
             test(`compile_${i}_${j}`, async () => {
