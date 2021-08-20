@@ -179,6 +179,24 @@ for_stack_0:
             pop
 }`
     },
+    {
+        source: `
+%macro BYTECODE_PTR_PTR
+    0x100
+%endmacro
+
+%macro anothermacro
+    BYTECODE_PTR_PTR  //
+%endmacro
+
+anothermacro  //
+      `,
+        result: `
+/* (0) anothermacro //   //   */
+/* (0) BYTECODE_PTR_PTR //   //   */
+0x100
+`,
+    },
 ]
 
 module.exports = tests;

@@ -4,6 +4,7 @@ const getstline = /%macro .*/;
 const getstlineList = /%macrolist .*/;
 
 const getmswitchRg = /%mswitch\s.*?%endmswitch/gs;
+const commentsRg = /(\/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+\/)|(\/\/.*)/g;
 
 const getinstance = (name, flag = 'g') => new RegExp(`${name} .*`, flag);
 // const getinstance_noparams = (name, flag = 'g') => new RegExp(`(?<!%macro\\s*)${name}(?:\\n)`, flag);
@@ -233,25 +234,43 @@ function handleMSwitch (source, transpileTimeVariables) {
   return {mswitches:switches, newsource};
 }
 
+function buildIsComment (source) {
+  const commentMatches = [...source.matchAll(commentsRg)];
+  const limits = commentMatches.map(match => [match.index, match[0].length + match.index]).reduce((accum, v) => accum.concat(v));
+  return (index) => {
+    const upperLimit = limits.findIndex(v => v > index);
+    // start1 end1 index start2 end2 ....
+    if (upperLimit % 2 === 0) return false;
+    // start1 end1 start2 index end2 ....
+    return true;
+  }
+}
+
 function compile(source, macrodefs, transpileTimeVariables) {
   if (!source) return {source: '', switches: {}};
   transpileTimeVariables = transpileTimeVariables || {};
   const {mswitches, newsource: _source} = handleMSwitch(source, transpileTimeVariables);
   source = _source;
   source = `${macrodefs}\n\n${source}`;
-  let macros = {};
-  let newsource = '';
+
+  let { macros = {}, newsource = '' } = getMacros(source);
+  return _compile(macros, newsource, mswitches);
+}
+
+function _compile (macros, newsource, mswitches, recompileCount = 0) {
   let lasti = 0;
   const instanceNos = {};
-
-  ({ macros, newsource } = getMacros(source));
+  let recompile = false;
+  const isComment = buildIsComment(newsource);
 
   const source2 = newsource;
   newsource = '';
   const usematches = Object.keys(macros)
     .filter(name => !macros[name].hascontent)
     .map(name => {
-      return getInstanceMatches(source2, name).map((val, i) => {
+      return getInstanceMatches(source2, name).filter((match) => {
+        return !isComment(match.index);
+      }).map((val, i) => {
         val.macroname = name;
         val.instanceno = i;
         instanceNos[val.macroname] = i;
@@ -279,7 +298,7 @@ function compile(source, macrodefs, transpileTimeVariables) {
     _lasti = usematch.index + usematch[0].length;
     return [_newsource, _lasti];
   }
-
+  if (usematches.length > 0) recompile = true;
   lasti = 0;
   usematches.forEach(usematch => {
     const [s, i] = replaceInstance(usematch, newsource, source2, lasti);
@@ -329,6 +348,7 @@ function compile(source, macrodefs, transpileTimeVariables) {
       newsource = source3;
     }
     else {
+      recompile = true;
       const _contentmatch = contentmatch[0].trim();
       contentmatch.macroname = macrosWContent[0];
       let lastinstance = instanceNos[contentmatch.macroname]
@@ -350,6 +370,7 @@ function compile(source, macrodefs, transpileTimeVariables) {
   }
 
   newsource = newsource.trim();
+  if (recompile && recompileCount < 100) return _compile(macros, newsource, mswitches, recompileCount + 1);
   return {source: newsource, switches: mswitches};
 }
 
