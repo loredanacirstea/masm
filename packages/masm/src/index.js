@@ -236,7 +236,8 @@ function handleMSwitch (source, transpileTimeVariables) {
 
 function buildIsComment (source) {
   const commentMatches = [...source.matchAll(commentsRg)];
-  const limits = commentMatches.map(match => [match.index, match[0].length + match.index]).reduce((accum, v) => accum.concat(v));
+  const limits = commentMatches.map(match => [match.index, match[0].length + match.index])
+    .reduce((accum, v) => accum.concat(v), []);
   return (index) => {
     const upperLimit = limits.findIndex(v => v > index);
     // start1 end1 index start2 end2 ....
