@@ -260,13 +260,13 @@ export default {
     async onCompileMasm(source) {
       const remixMacros = await this.$store.dispatch('remixfetch', masm.filename);
       if (remixMacros) {
-        this.$store.dispatch('setlocal', {key: masm.key, source: remixMacros});
+        await this.$store.dispatch('setlocal', {key: masm.key, source: remixMacros});
       }
       let localMacros = this.$store.state.storageItems[masm.key];
       if (!localMacros) localMacros = await this.$store.dispatch('remotefetch', masm);
 
       const source2 = masm.compile(source, localMacros);
-      const compiled = this.onCompileAsm(source2);
+      const compiled = await this.onCompileAsm(source2.source);
       compiled.abi = abiExtract(source);
       return compiled;
     },
