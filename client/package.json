@@ -15,7 +15,7 @@
     "core-js": "^2.6.5",
     "ethers": "^4.0.46",
     "@pipeos/evmasm": "0.0.4",
-    "masm": "file:../packages/masm/",
+    "masm": "^0.0.6",
     "module": "^1.2.5",
     "regenerator-runtime": "^0.13.7",
     "roboto-fontface": "*",
